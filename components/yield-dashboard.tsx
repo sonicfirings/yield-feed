@@ -49,10 +49,10 @@ export function YieldDashboard({
   const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const estimate = useMemo(() => estimateRewards(depositAmount), [depositAmount]);
+  const contractReady = isPoolContractConfigured();
   const stakedAmount = contractReady ? onchainStakedAmount : demoStakedAmount;
   const position = useMemo(() => estimateRewards(stakedAmount), [stakedAmount]);
   const poolTvl = initialOpportunities.reduce((sum, item) => sum + item.tvlUsd, 0);
-  const contractReady = isPoolContractConfigured();
 
   async function connectWallet() {
     setWalletError(null);
