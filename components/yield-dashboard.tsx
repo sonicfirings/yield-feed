@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { decodeFunctionResult, encodeFunctionData, formatUnits, parseUnits } from "viem";
 import { ArrowDownToLine, ArrowUpFromLine, Gift, Wallet } from "lucide-react";
 import { formatPercent } from "@/lib/utils";
@@ -32,6 +33,7 @@ declare global {
 }
 
 export function YieldDashboard() {
+  const [activeTab, setActiveTab] = useState<"deposit" | "withdraw">("deposit");
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [walletError, setWalletError] = useState<string | null>(null);
   const [depositAmount, setDepositAmount] = useState("");
@@ -329,9 +331,16 @@ export function YieldDashboard() {
 
       <div className="mx-auto grid max-w-[1120px] grid-cols-1 gap-4 p-4 lg:grid-cols-[320px_minmax(0,1fr)]">
         <aside className="space-y-4 rounded-lg border bg-card p-4 lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)]">
+          <div className="grid grid-cols-2 rounded-md border bg-secondary p-1">
+            <TabButton active={activeTab === "deposit"} onClick={() => setActiveTab("deposit")}>Deposit</TabButton>
+            <TabButton active={activeTab === "withdraw"} onClick={() => setActiveTab("withdraw")}>Withdraw</TabButton>
+          </div>
+
           <div>
-            <h2 className="text-sm font-semibold">Deposit</h2>
-            <p className="text-xs text-muted-foreground">Deposit USDC (ARC) into your pool</p>
+            <h2 className="text-sm font-semibold">{activeTab === "deposit" ? "Deposit" : "Withdraw"}</h2>
+            <p className="text-xs text-muted-foreground">
+              {activeTab === "deposit" ? "Deposit USDC (ARC) into your pool" : "Withdraw staked USDC (ARC) or claim rewards"}
+            </p>
           </div>
 
           <div className="rounded-md border p-3 text-sm">
@@ -340,46 +349,68 @@ export function YieldDashboard() {
             <InfoLine label="Contract" value={contractReady ? `${ARC_POOL_CONTRACT_ADDRESS.slice(0, 6)}...${ARC_POOL_CONTRACT_ADDRESS.slice(-4)}` : "Demo mode"} />
           </div>
 
-          <label className="block space-y-2 text-sm">
-            <span className="text-muted-foreground">Amount ({ARC_POOL_TOKEN_SYMBOL})</span>
-            <Input
-              type="number"
-              min={0}
-              placeholder="0.00"
-              value={depositAmount}
-              onChange={(event) => {
-                setDepositAmount(event.target.value);
-                setWalletError(null);
-              }}
-            />
-          </label>
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Wallet balance</span>
-            <span>{walletAddress ? `${walletUsdcBalance.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}` : "Please connect wallet"}</span>
-          </div>
-          <div className="grid grid-cols-4 gap-2">
-            <QuickAmountButton label="25%" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setQuickAmount(walletUsdcBalance * 0.25)} />
-            <QuickAmountButton label="50%" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setQuickAmount(walletUsdcBalance * 0.5)} />
-            <QuickAmountButton label="75%" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setQuickAmount(walletUsdcBalance * 0.75)} />
-            <QuickAmountButton label="Max" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setQuickAmount(walletUsdcBalance)} />
-          </div>
+          {activeTab === "deposit" ? (
+            <>
+              <label className="block space-y-2 text-sm">
+                <span className="text-muted-foreground">Amount ({ARC_POOL_TOKEN_SYMBOL})</span>
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="0.00"
+                  value={depositAmount}
+                  onChange={(event) => {
+                    setDepositAmount(event.target.value);
+                    setWalletError(null);
+                  }}
+                />
+              </label>
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Wallet balance</span>
+                <span>{walletAddress ? `${walletUsdcBalance.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}` : "Please connect wallet"}</span>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                <QuickAmountButton label="25%" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setQuickAmount(walletUsdcBalance * 0.25)} />
+                <QuickAmountButton label="50%" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setQuickAmount(walletUsdcBalance * 0.5)} />
+                <QuickAmountButton label="75%" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setQuickAmount(walletUsdcBalance * 0.75)} />
+                <QuickAmountButton label="Max" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setQuickAmount(walletUsdcBalance)} />
+              </div>
+            </>
+          ) : (
+            <div className="space-y-3 rounded-md border p-3 text-sm">
+              <InfoLine label="Amount staked" value={`${position.principal.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
+              <InfoLine label="Accrued rewards" value={`${(contractReady ? onchainAccruedRewards : position.monthlyRewards).toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
+              <InfoLine label="Estimated yearly" value={`${position.yearlyRewards.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
+            </div>
+          )}
 
           {walletError && <p className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">{walletError}</p>}
           {actionMessage && <p className="overflow-hidden break-words rounded-md border bg-secondary p-2 text-xs text-secondary-foreground">{actionMessage}</p>}
 
           <div className="grid gap-2">
-            <Button onClick={() => void sendPoolTransaction("deposit")} disabled={depositDisabled}>
-              <ArrowDownToLine className="h-4 w-4" />
-              Deposit
-            </Button>
-            <Button variant="outline" onClick={() => void sendPoolTransaction("withdraw")}>
-              <ArrowUpFromLine className="h-4 w-4" />
-              Withdraw
-            </Button>
-            <Button variant="outline" onClick={() => void sendPoolTransaction("claim")}>
-              <Gift className="h-4 w-4" />
-              Claim Rewards
-            </Button>
+            {activeTab === "deposit" ? (
+              <Button onClick={() => void sendPoolTransaction("deposit")} disabled={depositDisabled}>
+                <ArrowDownToLine className="h-4 w-4" />
+                Deposit
+              </Button>
+            ) : (
+              <>
+                <Button onClick={() => void sendPoolTransaction("withdraw")} disabled={!walletAddress || position.principal <= 0}>
+                  <ArrowUpFromLine className="h-4 w-4" />
+                  Withdraw All
+                </Button>
+                <Button variant="outline" onClick={() => void sendPoolTransaction("claim")} disabled={!walletAddress}>
+                  <Gift className="h-4 w-4" />
+                  Claim Rewards
+                </Button>
+                <Button variant="outline" onClick={() => {
+                  void refreshWalletBalance();
+                  void refreshPoolPosition();
+                  void refreshPoolBalance();
+                }} disabled={!walletAddress}>
+                  Refresh Position
+                </Button>
+              </>
+            )}
           </div>
         </aside>
 
@@ -425,6 +456,28 @@ function InfoLine({ label, value }: { label: string; value: string }) {
       <span className="text-muted-foreground">{label}</span>
       <span className="text-right font-medium">{value}</span>
     </div>
+  );
+}
+
+function TabButton({
+  active,
+  children,
+  onClick
+}: {
+  active: boolean;
+  children: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={active
+        ? "h-9 rounded-md bg-card text-sm font-semibold shadow-sm"
+        : "h-9 rounded-md text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"}
+    >
+      {children}
+    </button>
   );
 }
 
