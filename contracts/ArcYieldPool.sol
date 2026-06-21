@@ -61,8 +61,8 @@ contract ArcYieldPool {
         Position storage position = positions[msg.sender];
         require(amount > 0 && amount <= position.principal, "invalid amount");
 
-        uint256 rewards = position.rewardDebt;
-        position.rewardDebt = 0;
+        uint256 rewards = _payableRewards(position.rewardDebt);
+        position.rewardDebt -= rewards;
         position.principal -= amount;
         totalPrincipal -= amount;
 
@@ -72,9 +72,9 @@ contract ArcYieldPool {
 
     function claimRewards() external {
         _accrue(msg.sender);
-        uint256 rewards = positions[msg.sender].rewardDebt;
+        uint256 rewards = _payableRewards(positions[msg.sender].rewardDebt);
         require(rewards > 0, "no rewards");
-        positions[msg.sender].rewardDebt = 0;
+        positions[msg.sender].rewardDebt -= rewards;
         require(stakingToken.transfer(msg.sender, rewards), "transfer failed");
         emit RewardsClaimed(msg.sender, rewards);
     }
@@ -106,5 +106,20 @@ contract ArcYieldPool {
         }
         position.rewardDebt = pendingRewards(user);
         position.updatedAt = block.timestamp;
+    }
+
+    function _payableRewards(uint256 requestedRewards) internal view returns (uint256) {
+        uint256 balance = _poolBalance();
+        if (balance <= totalPrincipal) return 0;
+        uint256 rewardReserve = balance - totalPrincipal;
+        return requestedRewards <= rewardReserve ? requestedRewards : rewardReserve;
+    }
+
+    function _poolBalance() internal view returns (uint256) {
+        (bool success, bytes memory data) = address(stakingToken).staticcall(
+            abi.encodeWithSignature("balanceOf(address)", address(this))
+        );
+        require(success && data.length >= 32, "balance read failed");
+        return abi.decode(data, (uint256));
     }
 }

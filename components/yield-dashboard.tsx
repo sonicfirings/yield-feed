@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { encodeFunctionData, parseUnits } from "viem";
+import { decodeFunctionResult, encodeFunctionData, formatUnits, parseUnits } from "viem";
 import { ArrowDownToLine, ArrowUpFromLine, Gift, RefreshCw, ShieldCheck, Wallet } from "lucide-react";
 import type { MarketContext, Opportunity } from "@/lib/types";
 import { formatCompactUsd, formatPercent } from "@/lib/utils";
@@ -42,12 +42,15 @@ export function YieldDashboard({
 }) {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [walletError, setWalletError] = useState<string | null>(null);
-  const [depositAmount, setDepositAmount] = useState(1000);
+  const [depositAmount, setDepositAmount] = useState(0);
   const [demoStakedAmount, setDemoStakedAmount] = useState(0);
+  const [onchainStakedAmount, setOnchainStakedAmount] = useState(0);
+  const [onchainAccruedRewards, setOnchainAccruedRewards] = useState(0);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const estimate = useMemo(() => estimateRewards(depositAmount), [depositAmount]);
-  const position = useMemo(() => estimateRewards(demoStakedAmount), [demoStakedAmount]);
+  const stakedAmount = contractReady ? onchainStakedAmount : demoStakedAmount;
+  const position = useMemo(() => estimateRewards(stakedAmount), [stakedAmount]);
   const poolTvl = initialOpportunities.reduce((sum, item) => sum + item.tvlUsd, 0);
   const contractReady = isPoolContractConfigured();
 
@@ -60,7 +63,8 @@ export function YieldDashboard({
 
     try {
       const accounts = await window.ethereum.request({ method: "eth_requestAccounts" }) as string[];
-      setWalletAddress(accounts[0] ?? null);
+      const account = accounts[0] ?? null;
+      setWalletAddress(account);
 
       if (ARC_TESTNET_CHAIN.chainId > 0 && ARC_TESTNET_CHAIN.rpcUrl) {
         const chainParams: {
@@ -82,8 +86,52 @@ export function YieldDashboard({
           params: [chainParams]
         }).catch(() => undefined);
       }
+
+      if (account) await refreshPoolPosition(account);
     } catch {
       setWalletError("Wallet connection was cancelled or failed.");
+    }
+  }
+
+  async function refreshPoolPosition(account = walletAddress) {
+    if (!window.ethereum || !account || !contractReady) return;
+
+    try {
+      const positionData = encodeFunctionData({
+        abi: ARC_YIELD_POOL_ABI,
+        functionName: "positions",
+        args: [account as `0x${string}`]
+      });
+      const pendingRewardsData = encodeFunctionData({
+        abi: ARC_YIELD_POOL_ABI,
+        functionName: "pendingRewards",
+        args: [account as `0x${string}`]
+      });
+
+      const rawPosition = await window.ethereum.request({
+        method: "eth_call",
+        params: [{ to: ARC_POOL_CONTRACT_ADDRESS, data: positionData }, "latest"]
+      }) as `0x${string}`;
+      const rawRewards = await window.ethereum.request({
+        method: "eth_call",
+        params: [{ to: ARC_POOL_CONTRACT_ADDRESS, data: pendingRewardsData }, "latest"]
+      }) as `0x${string}`;
+
+      const [principal] = decodeFunctionResult({
+        abi: ARC_YIELD_POOL_ABI,
+        functionName: "positions",
+        data: rawPosition
+      });
+      const rewards = decodeFunctionResult({
+        abi: ARC_YIELD_POOL_ABI,
+        functionName: "pendingRewards",
+        data: rawRewards
+      });
+
+      setOnchainStakedAmount(Number(formatUnits(principal, ARC_POOL_TOKEN_DECIMALS)));
+      setOnchainAccruedRewards(Number(formatUnits(rewards, ARC_POOL_TOKEN_DECIMALS)));
+    } catch {
+      setWalletError("Could not read your pool position. Check that your wallet is on Arc Testnet.");
     }
   }
 
@@ -93,6 +141,11 @@ export function YieldDashboard({
 
     if (!walletAddress) {
       setWalletError("Connect your wallet first.");
+      return;
+    }
+
+    if (action === "deposit" && estimate.principal <= 0) {
+      setWalletError("Enter an amount greater than 0.");
       return;
     }
 
@@ -116,12 +169,17 @@ export function YieldDashboard({
       return;
     }
 
+    if (action === "withdraw" && onchainStakedAmount <= 0) {
+      setWalletError("No staked balance found to withdraw. Refresh your position after the deposit confirms.");
+      return;
+    }
+
     if (action === "deposit" && !ARC_POOL_TOKEN_ADDRESS) {
       setWalletError("Set the USDC (ARC) token contract address before on-chain deposits.");
       return;
     }
 
-    const amount = action === "withdraw" ? position.principal : estimate.principal;
+    const amount = action === "withdraw" ? onchainStakedAmount : estimate.principal;
     const amountUnits = parseUnits(String(amount), ARC_POOL_TOKEN_DECIMALS);
 
     try {
@@ -155,6 +213,7 @@ export function YieldDashboard({
       if (action === "withdraw") setDemoStakedAmount(0);
       const hash = String(txHash);
       setActionMessage(`Transaction submitted: ${hash.slice(0, 10)}...${hash.slice(-8)}`);
+      window.setTimeout(() => void refreshPoolPosition(), 5000);
     } catch {
       setWalletError("Transaction was rejected or failed.");
     }
@@ -241,7 +300,7 @@ export function YieldDashboard({
             <CardContent className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
               <DetailMetric label="Wallet" value={walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : "Not connected"} />
               <DetailMetric label="Amount staked" value={`${position.principal.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
-              <DetailMetric label="Accrued rewards" value={`${position.monthlyRewards.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL} est.`} />
+              <DetailMetric label="Accrued rewards" value={`${(contractReady ? onchainAccruedRewards : position.monthlyRewards).toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL} est.`} />
               <DetailMetric label="Estimated daily" value={`${position.dailyRewards.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
               <DetailMetric label="Estimated monthly" value={`${position.monthlyRewards.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
               <DetailMetric label="Estimated yearly" value={`${position.yearlyRewards.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
@@ -269,9 +328,9 @@ export function YieldDashboard({
             <InfoRow title="Contract status" body={contractReady ? "Contract address is configured." : "Demo mode until contract address is added."} />
           </section>
 
-          <Button variant="outline" className="w-full" onClick={() => window.location.reload()}>
+          <Button variant="outline" className="w-full" onClick={() => void refreshPoolPosition()}>
             <RefreshCw className="h-4 w-4" />
-            Refresh
+            Refresh Position
           </Button>
         </aside>
       </div>

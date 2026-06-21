@@ -26,6 +26,24 @@ export const ARC_YIELD_POOL_ABI = [
     stateMutability: "nonpayable",
     inputs: [],
     outputs: []
+  },
+  {
+    type: "function",
+    name: "positions",
+    stateMutability: "view",
+    inputs: [{ name: "user", type: "address" }],
+    outputs: [
+      { name: "principal", type: "uint256" },
+      { name: "rewardDebt", type: "uint256" },
+      { name: "updatedAt", type: "uint256" }
+    ]
+  },
+  {
+    type: "function",
+    name: "pendingRewards",
+    stateMutability: "view",
+    inputs: [{ name: "user", type: "address" }],
+    outputs: [{ name: "rewards", type: "uint256" }]
   }
 ] as const;
 
