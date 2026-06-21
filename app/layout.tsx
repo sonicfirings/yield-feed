@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Yield Feed",
-  description: "Daily ranked stablecoin and crypto yield opportunities."
+  description: "ARC testnet yield opportunities ranked by risk-adjusted return."
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

@@ -19,6 +19,7 @@ export type Opportunity = {
   source: "defillama" | "fallback";
   updatedAt: string;
   riskFactors: RiskFactor[];
+  stakeUrl: string | null;
 };
 
 export type RiskFactor = {

@@ -23,6 +23,7 @@ create table if not exists public.opportunities (
   estimated_monthly_return numeric,
   estimated_yearly_return numeric,
   risk_factors jsonb not null default '[]'::jsonb,
+  stake_url text,
   updated_at timestamptz not null default now()
 );
 
@@ -45,6 +46,9 @@ create table if not exists public.opportunity_history (
 
 create index if not exists opportunities_rank_idx on public.opportunities (risk_adjusted_return desc);
 create index if not exists history_opportunity_time_idx on public.opportunity_history (opportunity_id, captured_at desc);
+
+alter table public.opportunities
+add column if not exists stake_url text;
 
 insert into public.users (id, email)
 values ('00000000-0000-0000-0000-000000000001', 'demo@yieldfeed.local')

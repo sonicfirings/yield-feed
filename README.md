@@ -1,6 +1,6 @@
 # Yield Feed
 
-Yield Feed is a production-ready MVP for ranking stablecoin and crypto yield opportunities by risk-adjusted return.
+Yield Feed is a production-ready MVP for ranking ARC testnet yield opportunities by risk-adjusted return.
 
 ## Stack
 
@@ -12,6 +12,7 @@ Yield Feed is a production-ready MVP for ranking stablecoin and crypto yield opp
 - DeFiLlama yield data
 - CoinGecko market context
 - Optional OpenAI explanations
+- Injected browser wallet connection
 
 ## Local Setup
 
@@ -22,7 +23,19 @@ npm run dev
 
 Create `.env.local` from `.env.example`.
 
-Supabase is optional for local browsing. Without Supabase keys, the feed still works with live APIs and fallback data, while watchlist calls return local-only success responses.
+Supabase is optional for local browsing. Without Supabase keys, the feed still works with live APIs and ARC testnet fallback data, while watchlist calls return local-only success responses.
+
+ARC network configuration is controlled by:
+
+```bash
+NEXT_PUBLIC_ARC_CHAIN_NAME=ARC Testnet
+NEXT_PUBLIC_ARC_CHAIN_ID=
+NEXT_PUBLIC_ARC_RPC_URL=
+NEXT_PUBLIC_ARC_EXPLORER_URL=
+NEXT_PUBLIC_ARC_STAKE_URL=
+```
+
+Set `NEXT_PUBLIC_ARC_STAKE_URL` to the real staking app URL when ARC staking is available. The app appends `?pool=<poolId>` to that URL.
 
 ## Database
 
@@ -37,7 +50,7 @@ The app stores DeFiLlama snapshots in `opportunities` and appends APY/risk/TVL s
 
 ## API Routes
 
-- `GET /api/opportunities` fetches live DeFiLlama data, ranks it, includes CoinGecko market context, and falls back to cache/mock data.
+- `GET /api/opportunities` fetches ARC testnet DeFiLlama data, ranks it, includes CoinGecko market context, and falls back to cached or mock ARC data.
 - `POST /api/risk` returns the risk score and factor breakdown for an input.
 - `POST /api/ai-explain` explains a selected opportunity. It never performs calculations or invents new figures.
 - `GET|POST|DELETE /api/watchlist` loads, saves, and removes watchlist items.
@@ -67,3 +80,7 @@ riskAdjustedReturn = apy / riskScore
 ```
 
 The feed sorts highest risk-adjusted return first.
+
+## Staking
+
+The UI can connect to an injected wallet such as MetaMask. True direct staking requires protocol-specific contract addresses and ABIs. Until those are available, the production-safe action is to open the configured ARC staking URL for the selected pool.

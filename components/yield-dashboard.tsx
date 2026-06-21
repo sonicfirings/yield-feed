@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Bookmark, Bot, Calculator, RefreshCw, ShieldCheck, TrendingUp } from "lucide-react";
+import { Bookmark, Bot, Calculator, ExternalLink, RefreshCw, ShieldCheck, TrendingUp, Wallet } from "lucide-react";
 import type { FeedFilters, MarketContext, Opportunity, PortfolioSimulation, RiskPreference } from "@/lib/types";
 import { formatCompactUsd, formatPercent, formatUsd } from "@/lib/utils";
 import { simulatePortfolio } from "@/services/ranking";
+import { ARC_TESTNET_CHAIN } from "@/services/arc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,16 @@ type AiExplanation = {
   suitableFor: string;
 };
 
+type EthereumProvider = {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+};
+
+declare global {
+  interface Window {
+    ethereum?: EthereumProvider;
+  }
+}
+
 export function YieldDashboard({ initialOpportunities, initialMarketContext }: { initialOpportunities: Opportunity[]; initialMarketContext: MarketContext }) {
   const [opportunities, setOpportunities] = useState(initialOpportunities);
   const [marketContext, setMarketContext] = useState(initialMarketContext);
@@ -28,6 +39,8 @@ export function YieldDashboard({ initialOpportunities, initialMarketContext }: {
   const [ai, setAi] = useState<AiExplanation | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [walletError, setWalletError] = useState<string | null>(null);
 
   const chains = useMemo(() => ["all", ...Array.from(new Set(opportunities.map((item) => item.chain))).sort()], [opportunities]);
 
@@ -106,19 +119,59 @@ export function YieldDashboard({ initialOpportunities, initialMarketContext }: {
     setAi(null);
   }
 
+  async function connectWallet() {
+    setWalletError(null);
+    if (!window.ethereum) {
+      setWalletError("Install a browser wallet to connect.");
+      return;
+    }
+
+    try {
+      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" }) as string[];
+      setWalletAddress(accounts[0] ?? null);
+
+      if (ARC_TESTNET_CHAIN.chainId > 0 && ARC_TESTNET_CHAIN.rpcUrl) {
+        const chainParams: {
+          chainId: string;
+          chainName: string;
+          rpcUrls: string[];
+          blockExplorerUrls?: string[];
+          nativeCurrency: { name: string; symbol: string; decimals: number };
+        } = {
+          chainId: `0x${ARC_TESTNET_CHAIN.chainId.toString(16)}`,
+          chainName: ARC_TESTNET_CHAIN.name,
+          rpcUrls: [ARC_TESTNET_CHAIN.rpcUrl],
+          nativeCurrency: { name: "ARC", symbol: "ARC", decimals: 18 }
+        };
+        if (ARC_TESTNET_CHAIN.explorerUrl) chainParams.blockExplorerUrls = [ARC_TESTNET_CHAIN.explorerUrl];
+
+        await window.ethereum.request({
+          method: "wallet_addEthereumChain",
+          params: [chainParams]
+        }).catch(() => undefined);
+      }
+    } catch {
+      setWalletError("Wallet connection was cancelled or failed.");
+    }
+  }
+
   return (
     <main className="min-h-screen bg-background">
       <div className="border-b bg-card">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between px-5 py-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-normal">Yield Feed</h1>
-            <p className="text-sm text-muted-foreground">Ranked stablecoin and crypto yield opportunities</p>
+            <p className="text-sm text-muted-foreground">ARC testnet yield opportunities ranked by risk-adjusted return</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden gap-3 text-right text-xs text-muted-foreground sm:flex">
               <span>BTC {formatCompactUsd(marketContext.bitcoinUsd)} ({marketContext.bitcoin24hChange.toFixed(1)}%)</span>
               <span>ETH {formatCompactUsd(marketContext.ethereumUsd)} ({marketContext.ethereum24hChange.toFixed(1)}%)</span>
             </div>
+            <Button variant={walletAddress ? "secondary" : "default"} onClick={connectWallet}>
+              <Wallet className="h-4 w-4" />
+              {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : "Connect"}
+            </Button>
             <Button variant="outline" onClick={refreshFeed} disabled={refreshing}>
               <RefreshCw className={refreshing ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
               Refresh
@@ -131,7 +184,7 @@ export function YieldDashboard({ initialOpportunities, initialMarketContext }: {
         <aside className="space-y-4 rounded-lg border bg-card p-4 lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)]">
           <div>
             <h2 className="text-sm font-semibold">Filters</h2>
-            <p className="text-xs text-muted-foreground">Narrow the ranked feed</p>
+            <p className="text-xs text-muted-foreground">ARC testnet feed controls</p>
           </div>
           <label className="block space-y-2 text-sm">
             <span className="text-muted-foreground">Risk level</span>
@@ -145,9 +198,10 @@ export function YieldDashboard({ initialOpportunities, initialMarketContext }: {
           <label className="block space-y-2 text-sm">
             <span className="text-muted-foreground">Chain</span>
             <Select value={filters.chain} onChange={(event) => setFilters({ ...filters, chain: event.target.value })}>
-              {chains.map((chain) => <option key={chain} value={chain}>{chain === "all" ? "All chains" : chain}</option>)}
+              {chains.map((chain) => <option key={chain} value={chain}>{chain === "all" ? "ARC testnet only" : chain}</option>)}
             </Select>
           </label>
+          {walletError && <p className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">{walletError}</p>}
           <label className="block space-y-2 text-sm">
             <span className="text-muted-foreground">Minimum APY</span>
             <Input type="number" min={0} value={filters.minApy} onChange={(event) => setFilters({ ...filters, minApy: Number(event.target.value) })} />
@@ -177,7 +231,7 @@ export function YieldDashboard({ initialOpportunities, initialMarketContext }: {
           <div className="flex items-end justify-between">
             <div>
               <h2 className="text-lg font-semibold">Ranked Opportunities</h2>
-              <p className="text-sm text-muted-foreground">{filtered.length} results sorted by risk-adjusted return</p>
+              <p className="text-sm text-muted-foreground">{filtered.length} ARC testnet results sorted by risk-adjusted return</p>
             </div>
             <Badge>{opportunities[0]?.source === "defillama" ? "Live data" : "Fallback data"}</Badge>
           </div>
@@ -257,6 +311,34 @@ export function YieldDashboard({ initialOpportunities, initialMarketContext }: {
                     <p className="mt-1 text-xs text-muted-foreground">{factor.note}</p>
                   </div>
                 ))}
+              </section>
+
+              <section className="space-y-2">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <Wallet className="h-4 w-4" />
+                  Stake
+                </div>
+                <div className="rounded-md border p-3 text-sm">
+                  <p className="mb-3 text-xs text-muted-foreground">
+                    Direct staking is available when the opportunity has a configured ARC staking URL.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="flex-1" onClick={connectWallet}>
+                      <Wallet className="h-4 w-4" />
+                      {walletAddress ? "Wallet connected" : "Connect wallet"}
+                    </Button>
+                    <Button className="flex-1" disabled={!selected.stakeUrl} asChild={Boolean(selected.stakeUrl)}>
+                      {selected.stakeUrl ? (
+                        <a href={selected.stakeUrl} target="_blank" rel="noreferrer">
+                          <ExternalLink className="h-4 w-4" />
+                          Stake
+                        </a>
+                      ) : (
+                        <span>Stake unavailable</span>
+                      )}
+                    </Button>
+                  </div>
+                </div>
               </section>
 
               <section className="space-y-2">

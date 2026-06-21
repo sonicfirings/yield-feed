@@ -6,7 +6,7 @@ export async function explainOpportunity(opportunity: Opportunity) {
     return {
       explanation: `${opportunity.protocol} on ${opportunity.chain} offers ${opportunity.apy.toFixed(2)}% APY for ${opportunity.asset}. Its risk score is ${opportunity.riskScore}/10, so the ranking is driven by a risk-adjusted return of ${opportunity.riskAdjustedReturn.toFixed(2)}.`,
       risks: opportunity.riskFactors.map((factor) => factor.note),
-      suitableFor: opportunity.riskScore <= 3 ? "Conservative stablecoin yield users." : opportunity.riskScore <= 6 ? "Users comfortable monitoring APY and liquidity changes." : "Experienced users who can tolerate elevated yield risk."
+      suitableFor: opportunity.riskScore <= 3 ? "Conservative yield users." : opportunity.riskScore <= 6 ? "Users comfortable monitoring APY and liquidity changes." : "Experienced users who can tolerate elevated yield risk."
     };
   }
 

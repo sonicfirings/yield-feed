@@ -72,7 +72,7 @@ export function calculateRiskScore(input: RiskInput): RiskResult {
     label: "Abnormal yield",
     value: `${input.apy.toFixed(2)}% APY`,
     impact: impact(abnormalYieldPenalty),
-    note: abnormalYieldPenalty === 0 ? "APY is inside a normal stablecoin range." : "Unusually high APY may reflect incentives, utilization spikes, or hidden risk."
+    note: abnormalYieldPenalty === 0 ? "APY is inside a normal yield range." : "Unusually high APY may reflect incentives, utilization spikes, or hidden risk."
   });
 
   return {

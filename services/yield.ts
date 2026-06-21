@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { fallbackOpportunities } from "@/services/mock-data";
 import { calculateRiskScore } from "@/services/risk";
 import { calculateRiskAdjustedReturn, enrichReturns, rankOpportunities } from "@/services/ranking";
+import { getStakeUrl, isArcTestnetChain } from "@/services/arc";
 
 type DefiLlamaPool = {
   pool: string;
@@ -14,11 +15,9 @@ type DefiLlamaPool = {
   apyMean30d?: number;
   apyPct1D?: number;
   apyPct7D?: number;
-  stablecoin?: boolean;
   exposure?: string;
 };
 
-const STABLE_SYMBOLS = ["USDC", "USDT", "DAI", "USDS", "FRAX", "LUSD", "PYUSD", "GHO", "crvUSD", "sUSDe", "USDe"];
 const PROTOCOL_AGE_DAYS: Record<string, number> = {
   aave: 2300,
   compound: 2500,
@@ -35,11 +34,6 @@ const PROTOCOL_AGE_DAYS: Record<string, number> = {
 function protocolAgeDays(protocol: string) {
   const key = Object.keys(PROTOCOL_AGE_DAYS).find((name) => protocol.toLowerCase().includes(name));
   return key ? PROTOCOL_AGE_DAYS[key] : 365;
-}
-
-function isStablePool(pool: DefiLlamaPool) {
-  const symbol = pool.symbol.toUpperCase();
-  return Boolean(pool.stablecoin) || STABLE_SYMBOLS.some((asset) => symbol.includes(asset.toUpperCase()));
 }
 
 function normalizePool(pool: DefiLlamaPool): Opportunity {
@@ -70,7 +64,8 @@ function normalizePool(pool: DefiLlamaPool): Opportunity {
     estimatedYearlyReturn: 0,
     source: "defillama",
     updatedAt: new Date().toISOString(),
-    riskFactors: risk.factors
+    riskFactors: risk.factors,
+    stakeUrl: getStakeUrl(pool.pool)
   });
 }
 
@@ -86,8 +81,8 @@ async function fetchDefiLlamaPools(): Promise<Opportunity[]> {
 
   return pools
     .filter((pool) => Number.isFinite(pool.apy) && Number.isFinite(pool.tvlUsd))
-    .filter((pool) => pool.tvlUsd >= 1_000_000)
-    .filter(isStablePool)
+    .filter((pool) => pool.tvlUsd >= 100_000)
+    .filter((pool) => isArcTestnetChain(pool.chain))
     .map(normalizePool)
     .filter((opportunity) => opportunity.apy > 0)
     .slice(0, 80);
@@ -123,8 +118,9 @@ async function readCachedOpportunities(): Promise<Opportunity[]> {
     estimatedYearlyReturn: Number(row.estimated_yearly_return ?? 0),
     source: "fallback",
     updatedAt: row.updated_at,
-    riskFactors: row.risk_factors ?? []
-  }));
+    riskFactors: row.risk_factors ?? [],
+    stakeUrl: row.stake_url ?? getStakeUrl(row.pool_id)
+  })).filter((opportunity) => isArcTestnetChain(opportunity.chain));
 }
 
 async function cacheOpportunities(opportunities: Opportunity[]) {
@@ -148,6 +144,7 @@ async function cacheOpportunities(opportunities: Opportunity[]) {
     estimated_monthly_return: opportunity.estimatedMonthlyReturn,
     estimated_yearly_return: opportunity.estimatedYearlyReturn,
     risk_factors: opportunity.riskFactors,
+    stake_url: opportunity.stakeUrl,
     updated_at: opportunity.updatedAt
   }));
 
@@ -165,10 +162,14 @@ async function cacheOpportunities(opportunities: Opportunity[]) {
 export async function getOpportunities(): Promise<Opportunity[]> {
   try {
     const live = rankOpportunities(await fetchDefiLlamaPools()).slice(0, 50);
-    await cacheOpportunities(live).catch(() => undefined);
-    return live;
+    if (live.length > 0) {
+      await cacheOpportunities(live).catch(() => undefined);
+      return live;
+    }
   } catch {
-    const cached = await readCachedOpportunities();
-    return cached.length > 0 ? rankOpportunities(cached) : rankOpportunities(fallbackOpportunities);
+    // Fall through to cache and ARC mock data.
   }
+
+  const cached = await readCachedOpportunities();
+  return cached.length > 0 ? rankOpportunities(cached) : rankOpportunities(fallbackOpportunities);
 }
