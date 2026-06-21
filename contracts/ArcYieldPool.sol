@@ -1,9 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-/// @notice Native-token ARC testnet yield pool with owner-funded rewards.
-/// @dev APY is for UI/accounting transparency. The owner must keep enough rewards funded.
+interface IERC20 {
+    function transfer(address to, uint256 amount) external returns (bool);
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
+}
+
+/// @notice USDC (ARC) testnet yield pool with owner-funded rewards.
+/// @dev Users must approve this contract before depositing.
 contract ArcYieldPool {
+    IERC20 public immutable stakingToken;
     address public owner;
     uint256 public constant APY_BPS = 500;
     uint256 public constant BPS = 10_000;
@@ -35,20 +41,19 @@ contract ArcYieldPool {
         _;
     }
 
-    constructor() {
+    constructor(address tokenAddress) {
+        require(tokenAddress != address(0), "token required");
         owner = msg.sender;
+        stakingToken = IERC20(tokenAddress);
     }
 
-    receive() external payable {
-        fundRewards();
-    }
-
-    function deposit() external payable whenNotPaused {
-        require(msg.value > 0, "amount required");
+    function deposit(uint256 amount) external whenNotPaused {
+        require(amount > 0, "amount required");
         _accrue(msg.sender);
-        positions[msg.sender].principal += msg.value;
-        totalPrincipal += msg.value;
-        emit Deposited(msg.sender, msg.value);
+        positions[msg.sender].principal += amount;
+        totalPrincipal += amount;
+        require(stakingToken.transferFrom(msg.sender, address(this), amount), "transfer failed");
+        emit Deposited(msg.sender, amount);
     }
 
     function withdraw(uint256 amount) external {
@@ -61,10 +66,7 @@ contract ArcYieldPool {
         position.principal -= amount;
         totalPrincipal -= amount;
 
-        uint256 payout = amount + rewards;
-        require(address(this).balance >= payout, "insufficient pool balance");
-        (bool sent,) = msg.sender.call{value: payout}("");
-        require(sent, "transfer failed");
+        require(stakingToken.transfer(msg.sender, amount + rewards), "transfer failed");
         emit Withdrawn(msg.sender, amount, rewards);
     }
 
@@ -73,15 +75,14 @@ contract ArcYieldPool {
         uint256 rewards = positions[msg.sender].rewardDebt;
         require(rewards > 0, "no rewards");
         positions[msg.sender].rewardDebt = 0;
-        require(address(this).balance >= totalPrincipal + rewards, "insufficient rewards");
-        (bool sent,) = msg.sender.call{value: rewards}("");
-        require(sent, "transfer failed");
+        require(stakingToken.transfer(msg.sender, rewards), "transfer failed");
         emit RewardsClaimed(msg.sender, rewards);
     }
 
-    function fundRewards() public payable onlyOwner {
-        require(msg.value > 0, "amount required");
-        emit RewardsFunded(msg.sender, msg.value);
+    function fundRewards(uint256 amount) external onlyOwner {
+        require(amount > 0, "amount required");
+        require(stakingToken.transferFrom(msg.sender, address(this), amount), "transfer failed");
+        emit RewardsFunded(msg.sender, amount);
     }
 
     function setPaused(bool nextPaused) external onlyOwner {
