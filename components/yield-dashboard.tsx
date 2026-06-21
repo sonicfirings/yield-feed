@@ -52,7 +52,6 @@ export function YieldDashboard() {
   const depositDisabled =
     !walletAddress ||
     estimate.principal <= 0 ||
-    depositTooHigh ||
     (contractReady && !ARC_POOL_TOKEN_ADDRESS);
 
   useEffect(() => {
@@ -229,6 +228,7 @@ export function YieldDashboard() {
 
     if (action === "deposit" && contractReady && estimate.principal > walletUsdcBalance) {
       setWalletError(`Insufficient ${ARC_POOL_TOKEN_SYMBOL} balance.`);
+      window.setTimeout(() => setWalletError(null), 3500);
       return;
     }
 
@@ -306,6 +306,11 @@ export function YieldDashboard() {
     }
   }
 
+  function setQuickAmount(value: number) {
+    setDepositAmount(formatTokenAmount(value));
+    setWalletError(null);
+  }
+
   return (
     <main className="min-h-screen bg-background">
       <div className="border-b bg-card">
@@ -316,7 +321,7 @@ export function YieldDashboard() {
           <div className="flex items-center gap-3">
             <Button variant={walletAddress ? "secondary" : "default"} onClick={connectWallet}>
               <Wallet className="h-4 w-4" />
-              {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : "Connect"}
+              {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : "Please connect wallet"}
             </Button>
           </div>
         </div>
@@ -342,20 +347,22 @@ export function YieldDashboard() {
               min={0}
               placeholder="0.00"
               value={depositAmount}
-              onChange={(event) => setDepositAmount(event.target.value)}
+              onChange={(event) => {
+                setDepositAmount(event.target.value);
+                setWalletError(null);
+              }}
             />
           </label>
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>Wallet balance</span>
-            <span>{walletAddress ? `${walletUsdcBalance.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}` : "Connect wallet"}</span>
+            <span>{walletAddress ? `${walletUsdcBalance.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}` : "Please connect wallet"}</span>
           </div>
           <div className="grid grid-cols-4 gap-2">
-            <QuickAmountButton label="25%" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setDepositAmount(formatTokenAmount(walletUsdcBalance * 0.25))} />
-            <QuickAmountButton label="50%" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setDepositAmount(formatTokenAmount(walletUsdcBalance * 0.5))} />
-            <QuickAmountButton label="75%" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setDepositAmount(formatTokenAmount(walletUsdcBalance * 0.75))} />
-            <QuickAmountButton label="Max" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setDepositAmount(formatTokenAmount(walletUsdcBalance))} />
+            <QuickAmountButton label="25%" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setQuickAmount(walletUsdcBalance * 0.25)} />
+            <QuickAmountButton label="50%" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setQuickAmount(walletUsdcBalance * 0.5)} />
+            <QuickAmountButton label="75%" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setQuickAmount(walletUsdcBalance * 0.75)} />
+            <QuickAmountButton label="Max" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setQuickAmount(walletUsdcBalance)} />
           </div>
-          {depositTooHigh && <p className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">Insufficient {ARC_POOL_TOKEN_SYMBOL} balance.</p>}
 
           {walletError && <p className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">{walletError}</p>}
           {actionMessage && <p className="overflow-hidden break-words rounded-md border bg-secondary p-2 text-xs text-secondary-foreground">{actionMessage}</p>}
