@@ -57,6 +57,13 @@ export const ERC20_APPROVE_ABI = [
       { name: "amount", type: "uint256" }
     ],
     outputs: [{ name: "success", type: "bool" }]
+  },
+  {
+    type: "function",
+    name: "balanceOf",
+    stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ name: "balance", type: "uint256" }]
   }
 ] as const;
 
