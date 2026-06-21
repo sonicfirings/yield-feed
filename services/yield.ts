@@ -3,7 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { fallbackOpportunities } from "@/services/mock-data";
 import { calculateRiskScore } from "@/services/risk";
 import { calculateRiskAdjustedReturn, enrichReturns, rankOpportunities } from "@/services/ranking";
-import { getStakeUrl, isArcTestnetChain } from "@/services/arc";
+import { isArcTestnetChain } from "@/services/arc";
 
 type DefiLlamaPool = {
   pool: string;
@@ -65,7 +65,7 @@ function normalizePool(pool: DefiLlamaPool): Opportunity {
     source: "defillama",
     updatedAt: new Date().toISOString(),
     riskFactors: risk.factors,
-    stakeUrl: getStakeUrl(pool.pool)
+    stakeUrl: null
   });
 }
 
@@ -119,7 +119,7 @@ async function readCachedOpportunities(): Promise<Opportunity[]> {
     source: "fallback" as const,
     updatedAt: row.updated_at,
     riskFactors: row.risk_factors ?? [],
-    stakeUrl: row.stake_url ?? getStakeUrl(row.pool_id)
+    stakeUrl: row.stake_url ?? null
   })).filter((opportunity) => isArcTestnetChain(opportunity.chain));
 }
 
