@@ -37,6 +37,7 @@ export function YieldDashboard() {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [walletError, setWalletError] = useState<string | null>(null);
   const [depositAmount, setDepositAmount] = useState("");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
   const [demoStakedAmount, setDemoStakedAmount] = useState(0);
   const [onchainStakedAmount, setOnchainStakedAmount] = useState(0);
   const [onchainAccruedRewards, setOnchainAccruedRewards] = useState(0);
@@ -45,16 +46,24 @@ export function YieldDashboard() {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const depositValue = Number(depositAmount || 0);
+  const withdrawValue = Number(withdrawAmount || 0);
   const estimate = useMemo(() => estimateRewards(depositValue), [depositValue]);
   const contractReady = isPoolContractConfigured();
   const stakedAmount = contractReady ? onchainStakedAmount : demoStakedAmount;
   const position = useMemo(() => estimateRewards(stakedAmount), [stakedAmount]);
   const poolTvl = contractReady ? poolBalance : 0;
   const depositTooHigh = contractReady && estimate.principal > walletUsdcBalance;
+  const withdrawTooHigh = withdrawValue > position.principal;
   const depositDisabled =
     !walletAddress ||
     estimate.principal <= 0 ||
+    depositTooHigh ||
     (contractReady && !ARC_POOL_TOKEN_ADDRESS);
+  const withdrawDisabled =
+    !walletAddress ||
+    withdrawValue <= 0 ||
+    withdrawTooHigh ||
+    position.principal <= 0;
 
   useEffect(() => {
     void refreshPoolBalance();
@@ -230,7 +239,6 @@ export function YieldDashboard() {
 
     if (action === "deposit" && contractReady && estimate.principal > walletUsdcBalance) {
       setWalletError(`Insufficient ${ARC_POOL_TOKEN_SYMBOL} balance.`);
-      window.setTimeout(() => setWalletError(null), 3500);
       return;
     }
 
@@ -240,8 +248,17 @@ export function YieldDashboard() {
         setActionMessage(`Demo deposit recorded: ${estimate.principal.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}.`);
       }
       if (action === "withdraw") {
-        setDemoStakedAmount(0);
-        setActionMessage("Demo position withdrawn.");
+        if (withdrawValue <= 0) {
+          setWalletError("Enter a withdrawal amount greater than 0.");
+          return;
+        }
+        if (withdrawValue > demoStakedAmount) {
+          setWalletError(`Insufficient staked ${ARC_POOL_TOKEN_SYMBOL} balance.`);
+          return;
+        }
+        setDemoStakedAmount((current) => Math.max(0, Number((current - withdrawValue).toFixed(6))));
+        setWithdrawAmount("");
+        setActionMessage(`Demo withdrawal recorded: ${withdrawValue.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}.`);
       }
       if (action === "claim") {
         setActionMessage(`Demo rewards claimed: ${position.monthlyRewards.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL} estimated monthly rewards.`);
@@ -254,8 +271,13 @@ export function YieldDashboard() {
       return;
     }
 
-    if (action === "withdraw" && onchainStakedAmount <= 0) {
-      setWalletError("No staked balance found to withdraw. Refresh your position after the deposit confirms.");
+    if (action === "withdraw" && withdrawValue <= 0) {
+      setWalletError("Enter a withdrawal amount greater than 0.");
+      return;
+    }
+
+    if (action === "withdraw" && withdrawValue > onchainStakedAmount) {
+      setWalletError(`Insufficient staked ${ARC_POOL_TOKEN_SYMBOL} balance.`);
       return;
     }
 
@@ -264,7 +286,7 @@ export function YieldDashboard() {
       return;
     }
 
-    const amount = action === "withdraw" ? onchainStakedAmount : estimate.principal;
+    const amount = action === "withdraw" ? withdrawValue : estimate.principal;
     const amountUnits = parseUnits(String(amount), ARC_POOL_TOKEN_DECIMALS);
 
     try {
@@ -295,7 +317,10 @@ export function YieldDashboard() {
       });
 
       if (action === "deposit") setDemoStakedAmount((current) => Number((current + estimate.principal).toFixed(6)));
-      if (action === "withdraw") setDemoStakedAmount(0);
+      if (action === "withdraw") {
+        setDemoStakedAmount((current) => Math.max(0, Number((current - withdrawValue).toFixed(6))));
+        setWithdrawAmount("");
+      }
       const hash = String(txHash);
       setActionMessage(`Transaction submitted: ${hash.slice(0, 10)}...${hash.slice(-8)}`);
       window.setTimeout(() => {
@@ -310,6 +335,11 @@ export function YieldDashboard() {
 
   function setQuickAmount(value: number) {
     setDepositAmount(formatTokenAmount(value));
+    setWalletError(null);
+  }
+
+  function setQuickWithdrawAmount(value: number) {
+    setWithdrawAmount(formatTokenAmount(value));
     setWalletError(null);
   }
 
@@ -374,13 +404,36 @@ export function YieldDashboard() {
                 <QuickAmountButton label="75%" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setQuickAmount(walletUsdcBalance * 0.75)} />
                 <QuickAmountButton label="Max" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setQuickAmount(walletUsdcBalance)} />
               </div>
+              {depositTooHigh && <p className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">Insufficient {ARC_POOL_TOKEN_SYMBOL} balance.</p>}
             </>
           ) : (
-            <div className="space-y-3 rounded-md border p-3 text-sm">
-              <InfoLine label="Amount staked" value={`${position.principal.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
-              <InfoLine label="Accrued rewards" value={`${(contractReady ? onchainAccruedRewards : position.monthlyRewards).toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
-              <InfoLine label="Estimated yearly" value={`${position.yearlyRewards.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
-            </div>
+            <>
+              <div className="space-y-3 rounded-md border p-3 text-sm">
+                <InfoLine label="Amount staked" value={`${position.principal.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
+                <InfoLine label="Accrued rewards" value={`${(contractReady ? onchainAccruedRewards : position.monthlyRewards).toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
+                <InfoLine label="Estimated yearly" value={`${position.yearlyRewards.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
+              </div>
+              <label className="block space-y-2 text-sm">
+                <span className="text-muted-foreground">Withdraw amount ({ARC_POOL_TOKEN_SYMBOL})</span>
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="0.00"
+                  value={withdrawAmount}
+                  onChange={(event) => {
+                    setWithdrawAmount(event.target.value);
+                    setWalletError(null);
+                  }}
+                />
+              </label>
+              <div className="grid grid-cols-4 gap-2">
+                <QuickAmountButton label="25%" disabled={!walletAddress || position.principal <= 0} onClick={() => setQuickWithdrawAmount(position.principal * 0.25)} />
+                <QuickAmountButton label="50%" disabled={!walletAddress || position.principal <= 0} onClick={() => setQuickWithdrawAmount(position.principal * 0.5)} />
+                <QuickAmountButton label="75%" disabled={!walletAddress || position.principal <= 0} onClick={() => setQuickWithdrawAmount(position.principal * 0.75)} />
+                <QuickAmountButton label="Max" disabled={!walletAddress || position.principal <= 0} onClick={() => setQuickWithdrawAmount(position.principal)} />
+              </div>
+              {withdrawTooHigh && <p className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">Insufficient staked {ARC_POOL_TOKEN_SYMBOL} balance.</p>}
+            </>
           )}
 
           {walletError && <p className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">{walletError}</p>}
@@ -394,9 +447,9 @@ export function YieldDashboard() {
               </Button>
             ) : (
               <>
-                <Button onClick={() => void sendPoolTransaction("withdraw")} disabled={!walletAddress || position.principal <= 0}>
+                <Button onClick={() => void sendPoolTransaction("withdraw")} disabled={withdrawDisabled}>
                   <ArrowUpFromLine className="h-4 w-4" />
-                  Withdraw All
+                  Withdraw
                 </Button>
                 <Button variant="outline" onClick={() => void sendPoolTransaction("claim")} disabled={!walletAddress}>
                   <Gift className="h-4 w-4" />
