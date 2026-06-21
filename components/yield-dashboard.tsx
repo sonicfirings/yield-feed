@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { decodeFunctionResult, encodeFunctionData, formatUnits, parseUnits } from "viem";
-import { ArrowDownToLine, ArrowUpFromLine, Gift, RefreshCw, ShieldCheck, Wallet } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, Gift, Wallet } from "lucide-react";
 import { formatPercent } from "@/lib/utils";
 import { ARC_TESTNET_CHAIN } from "@/services/arc";
 import {
@@ -20,7 +20,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 
 type EthereumProvider = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
@@ -274,7 +273,6 @@ export function YieldDashboard() {
         <div className="mx-auto flex max-w-[1500px] items-center justify-between px-5 py-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-normal">ARC Yield Pool</h1>
-            <p className="text-sm text-muted-foreground">Owner-operated USDC (ARC) pool with transparent 5% estimated APY</p>
           </div>
           <div className="flex items-center gap-3">
             <Button variant={walletAddress ? "secondary" : "default"} onClick={connectWallet}>
@@ -285,8 +283,8 @@ export function YieldDashboard() {
         </div>
       </div>
 
-      <div className="mx-auto grid max-w-[1500px] grid-cols-1 gap-4 p-4 xl:grid-cols-[320px_minmax(0,1fr)_360px]">
-        <aside className="space-y-4 rounded-lg border bg-card p-4 xl:sticky xl:top-4 xl:h-[calc(100vh-2rem)]">
+      <div className="mx-auto grid max-w-[1120px] grid-cols-1 gap-4 p-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <aside className="space-y-4 rounded-lg border bg-card p-4 lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)]">
           <div>
             <h2 className="text-sm font-semibold">Deposit</h2>
             <p className="text-xs text-muted-foreground">Deposit USDC (ARC) into your pool</p>
@@ -353,34 +351,6 @@ export function YieldDashboard() {
           </Card>
         </section>
 
-        <aside className="space-y-4 rounded-lg border bg-card p-4 xl:sticky xl:top-4 xl:h-[calc(100vh-2rem)]">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold">Pool Summary</h2>
-              <p className="text-sm text-muted-foreground">USDC yield on ARC</p>
-            </div>
-            <Badge>USDC (ARC)</Badge>
-          </div>
-
-          <section className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <ShieldCheck className="h-4 w-4" />
-              Status
-            </div>
-            <InfoRow title="Asset" body="USDC (ARC)" />
-            <InfoRow title="Estimated APY" body={`${ARC_POOL_APY}%`} />
-            <InfoRow title="Pool owner" body={ARC_POOL_OWNER} />
-            <InfoRow title="Pool status" body={contractReady ? "Live" : "Demo mode until contract address is added."} />
-          </section>
-
-          <Button variant="outline" className="w-full" onClick={() => {
-            void refreshPoolPosition();
-            void refreshPoolBalance();
-          }}>
-            <RefreshCw className="h-4 w-4" />
-            Refresh Position
-          </Button>
-        </aside>
       </div>
     </main>
   );
@@ -411,15 +381,6 @@ function DetailMetric({ label, value }: { label: string; value: string }) {
     <div className="rounded-md border p-3">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="mt-1 text-lg font-semibold">{value}</div>
-    </div>
-  );
-}
-
-function InfoRow({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="rounded-md border p-3">
-      <div className="text-sm font-medium">{title}</div>
-      <p className="mt-1 text-xs text-muted-foreground">{body}</p>
     </div>
   );
 }
