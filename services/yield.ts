@@ -100,7 +100,7 @@ async function readCachedOpportunities(): Promise<Opportunity[]> {
 
   if (error || !data) return [];
 
-  return data.map((row) => ({
+  return data.map((row): Opportunity => ({
     id: row.id,
     poolId: row.pool_id,
     protocol: row.protocol,
@@ -116,7 +116,7 @@ async function readCachedOpportunities(): Promise<Opportunity[]> {
     riskAdjustedReturn: Number(row.risk_adjusted_return),
     estimatedMonthlyReturn: Number(row.estimated_monthly_return ?? 0),
     estimatedYearlyReturn: Number(row.estimated_yearly_return ?? 0),
-    source: "fallback",
+    source: "fallback" as const,
     updatedAt: row.updated_at,
     riskFactors: row.risk_factors ?? [],
     stakeUrl: row.stake_url ?? getStakeUrl(row.pool_id)
