@@ -34,18 +34,26 @@ declare global {
 export function YieldDashboard() {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [walletError, setWalletError] = useState<string | null>(null);
-  const [depositAmount, setDepositAmount] = useState(0);
+  const [depositAmount, setDepositAmount] = useState("");
   const [demoStakedAmount, setDemoStakedAmount] = useState(0);
   const [onchainStakedAmount, setOnchainStakedAmount] = useState(0);
   const [onchainAccruedRewards, setOnchainAccruedRewards] = useState(0);
+  const [walletUsdcBalance, setWalletUsdcBalance] = useState(0);
   const [poolBalance, setPoolBalance] = useState(0);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
 
-  const estimate = useMemo(() => estimateRewards(depositAmount), [depositAmount]);
+  const depositValue = Number(depositAmount || 0);
+  const estimate = useMemo(() => estimateRewards(depositValue), [depositValue]);
   const contractReady = isPoolContractConfigured();
   const stakedAmount = contractReady ? onchainStakedAmount : demoStakedAmount;
   const position = useMemo(() => estimateRewards(stakedAmount), [stakedAmount]);
   const poolTvl = contractReady ? poolBalance : 0;
+  const depositTooHigh = contractReady && estimate.principal > walletUsdcBalance;
+  const depositDisabled =
+    !walletAddress ||
+    estimate.principal <= 0 ||
+    depositTooHigh ||
+    (contractReady && !ARC_POOL_TOKEN_ADDRESS);
 
   useEffect(() => {
     void refreshPoolBalance();
@@ -84,7 +92,10 @@ export function YieldDashboard() {
         }).catch(() => undefined);
       }
 
-      if (account) await refreshPoolPosition(account);
+      if (account) {
+        await refreshWalletBalance(account);
+        await refreshPoolPosition(account);
+      }
     } catch {
       setWalletError("Wallet connection was cancelled or failed.");
     }
@@ -137,6 +148,27 @@ export function YieldDashboard() {
     }
   }
 
+  async function refreshWalletBalance(account = walletAddress) {
+    if (!account || !ARC_POOL_TOKEN_ADDRESS) return;
+
+    try {
+      const balanceData = encodeFunctionData({
+        abi: ERC20_APPROVE_ABI,
+        functionName: "balanceOf",
+        args: [account as `0x${string}`]
+      });
+      const rawBalance = await readContract(balanceData);
+      const balance = decodeFunctionResult({
+        abi: ERC20_APPROVE_ABI,
+        functionName: "balanceOf",
+        data: rawBalance
+      });
+      setWalletUsdcBalance(Number(formatUnits(balance, ARC_POOL_TOKEN_DECIMALS)));
+    } catch {
+      setWalletUsdcBalance(0);
+    }
+  }
+
   async function refreshPoolPosition(account = walletAddress) {
     if (!window.ethereum || !account || !contractReady) return;
 
@@ -174,6 +206,7 @@ export function YieldDashboard() {
 
       setOnchainStakedAmount(Number(formatUnits(principal, ARC_POOL_TOKEN_DECIMALS)));
       setOnchainAccruedRewards(Number(formatUnits(rewards, ARC_POOL_TOKEN_DECIMALS)));
+      await refreshWalletBalance(account);
       await refreshPoolBalance();
     } catch {
       setWalletError("Could not read your pool position. Check that your wallet is on Arc Testnet.");
@@ -191,6 +224,11 @@ export function YieldDashboard() {
 
     if (action === "deposit" && estimate.principal <= 0) {
       setWalletError("Enter an amount greater than 0.");
+      return;
+    }
+
+    if (action === "deposit" && contractReady && estimate.principal > walletUsdcBalance) {
+      setWalletError(`Insufficient ${ARC_POOL_TOKEN_SYMBOL} balance.`);
       return;
     }
 
@@ -259,6 +297,7 @@ export function YieldDashboard() {
       const hash = String(txHash);
       setActionMessage(`Transaction submitted: ${hash.slice(0, 10)}...${hash.slice(-8)}`);
       window.setTimeout(() => {
+        void refreshWalletBalance();
         void refreshPoolPosition();
         void refreshPoolBalance();
       }, 5000);
@@ -298,14 +337,31 @@ export function YieldDashboard() {
 
           <label className="block space-y-2 text-sm">
             <span className="text-muted-foreground">Amount ({ARC_POOL_TOKEN_SYMBOL})</span>
-            <Input type="number" min={0} value={depositAmount} onChange={(event) => setDepositAmount(Number(event.target.value))} />
+            <Input
+              type="number"
+              min={0}
+              placeholder="0.00"
+              value={depositAmount}
+              onChange={(event) => setDepositAmount(event.target.value)}
+            />
           </label>
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Wallet balance</span>
+            <span>{walletAddress ? `${walletUsdcBalance.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}` : "Connect wallet"}</span>
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            <QuickAmountButton label="25%" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setDepositAmount(formatTokenAmount(walletUsdcBalance * 0.25))} />
+            <QuickAmountButton label="50%" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setDepositAmount(formatTokenAmount(walletUsdcBalance * 0.5))} />
+            <QuickAmountButton label="75%" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setDepositAmount(formatTokenAmount(walletUsdcBalance * 0.75))} />
+            <QuickAmountButton label="Max" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setDepositAmount(formatTokenAmount(walletUsdcBalance))} />
+          </div>
+          {depositTooHigh && <p className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">Insufficient {ARC_POOL_TOKEN_SYMBOL} balance.</p>}
 
           {walletError && <p className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">{walletError}</p>}
           {actionMessage && <p className="overflow-hidden break-words rounded-md border bg-secondary p-2 text-xs text-secondary-foreground">{actionMessage}</p>}
 
           <div className="grid gap-2">
-            <Button onClick={() => void sendPoolTransaction("deposit")}>
+            <Button onClick={() => void sendPoolTransaction("deposit")} disabled={depositDisabled}>
               <ArrowDownToLine className="h-4 w-4" />
               Deposit
             </Button>
@@ -383,4 +439,30 @@ function DetailMetric({ label, value }: { label: string; value: string }) {
       <div className="mt-1 text-lg font-semibold">{value}</div>
     </div>
   );
+}
+
+function QuickAmountButton({
+  label,
+  disabled,
+  onClick
+}: {
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="h-9 rounded-md border bg-background text-xs font-medium transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {label}
+    </button>
+  );
+}
+
+function formatTokenAmount(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return "";
+  return Number(value.toFixed(6)).toString();
 }
