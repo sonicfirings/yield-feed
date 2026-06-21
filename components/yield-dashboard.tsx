@@ -153,7 +153,8 @@ export function YieldDashboard({
 
       if (action === "deposit") setDemoStakedAmount((current) => Number((current + estimate.principal).toFixed(6)));
       if (action === "withdraw") setDemoStakedAmount(0);
-      setActionMessage(`Transaction submitted: ${String(txHash)}`);
+      const hash = String(txHash);
+      setActionMessage(`Transaction submitted: ${hash.slice(0, 10)}...${hash.slice(-8)}`);
     } catch {
       setWalletError("Transaction was rejected or failed.");
     }
@@ -199,7 +200,7 @@ export function YieldDashboard({
           </label>
 
           {walletError && <p className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">{walletError}</p>}
-          {actionMessage && <p className="rounded-md border bg-secondary p-2 text-xs text-secondary-foreground">{actionMessage}</p>}
+          {actionMessage && <p className="overflow-hidden break-words rounded-md border bg-secondary p-2 text-xs text-secondary-foreground">{actionMessage}</p>}
 
           <div className="grid gap-2">
             <Button onClick={() => void sendPoolTransaction("deposit")}>
