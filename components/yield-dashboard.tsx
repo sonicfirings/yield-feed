@@ -351,9 +351,17 @@ export function YieldDashboard() {
             <h1 className="text-2xl font-semibold tracking-normal">ARC Yield Pool</h1>
           </div>
           <div className="flex items-center gap-3">
+            <a
+              href="https://faucet.circle.com/"
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Faucet
+            </a>
             <Button variant={walletAddress ? "secondary" : "default"} onClick={connectWallet}>
               <Wallet className="h-4 w-4" />
-              {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : "Please connect wallet"}
+              {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : "Connect Wallet"}
             </Button>
           </div>
         </div>
