@@ -4,13 +4,30 @@ export const ARC_POOL_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_ARC_POOL_CONTRA
 export const ARC_POOL_TOKEN_ADDRESS = process.env.NEXT_PUBLIC_ARC_POOL_TOKEN_ADDRESS ?? "";
 export const ARC_POOL_TOKEN_SYMBOL = process.env.NEXT_PUBLIC_ARC_POOL_TOKEN_SYMBOL ?? "USDC (ARC)";
 export const ARC_POOL_TOKEN_DECIMALS = Number(process.env.NEXT_PUBLIC_ARC_POOL_TOKEN_DECIMALS ?? 6);
+export const ARC_EARLY_BOOST_APY = Number(process.env.NEXT_PUBLIC_ARC_EARLY_BOOST_APY ?? 0.5);
+
+export type LockOption = {
+  label: string;
+  days: number;
+  apy: number;
+};
+
+export const LOCK_OPTIONS: LockOption[] = [
+  { label: "Flexible", days: 0, apy: 5 },
+  { label: "7 days", days: 7, apy: 5.5 },
+  { label: "30 days", days: 30, apy: 6.5 }
+];
 
 export const ARC_YIELD_POOL_ABI = [
   {
     type: "function",
     name: "deposit",
     stateMutability: "nonpayable",
-    inputs: [{ name: "amount", type: "uint256" }],
+    inputs: [
+      { name: "amount", type: "uint256" },
+      { name: "lockDays", type: "uint256" },
+      { name: "autoCompound", type: "bool" }
+    ],
     outputs: []
   },
   {
@@ -35,7 +52,11 @@ export const ARC_YIELD_POOL_ABI = [
     outputs: [
       { name: "principal", type: "uint256" },
       { name: "rewardDebt", type: "uint256" },
-      { name: "updatedAt", type: "uint256" }
+      { name: "updatedAt", type: "uint256" },
+      { name: "unlockAt", type: "uint256" },
+      { name: "apyBps", type: "uint256" },
+      { name: "autoCompound", type: "bool" },
+      { name: "boostBps", type: "uint256" }
     ]
   },
   {
@@ -44,6 +65,13 @@ export const ARC_YIELD_POOL_ABI = [
     stateMutability: "view",
     inputs: [{ name: "user", type: "address" }],
     outputs: [{ name: "rewards", type: "uint256" }]
+  },
+  {
+    type: "function",
+    name: "totalPrincipal",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "totalPrincipal", type: "uint256" }]
   }
 ] as const;
 
@@ -88,6 +116,11 @@ export function estimateRewards(principal: number, apy = ARC_POOL_APY): PoolEsti
     yearlyRewards: Number(yearlyRewards.toFixed(6)),
     totalAfterYear: Number((safePrincipal + yearlyRewards).toFixed(6))
   };
+}
+
+export function compoundedYearlyReturn(principal: number, apy: number) {
+  if (!Number.isFinite(principal) || principal <= 0) return 0;
+  return Number((principal * ((1 + apy / 100 / 365) ** 365 - 1)).toFixed(6));
 }
 
 export function isPoolContractConfigured() {
