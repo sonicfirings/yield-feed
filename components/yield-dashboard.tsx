@@ -96,8 +96,10 @@ export function YieldDashboard() {
     withdrawTooHigh ||
     position.principal <= 0 ||
     positionLocked;
+  const hasActivePosition = position.principal > 0;
   const positionLockDays = inferPositionLockDays(positionUnlockAt, positionApy, selectedLockDays);
-  const unlockProgress = getUnlockProgress(positionUnlockAt, positionLockDays);
+  const unlockProgress = hasActivePosition ? getUnlockProgress(positionUnlockAt, positionLockDays) : { percent: 0, daysLeft: 0 };
+  const timelineLabel = getTimelineLabel(hasActivePosition, positionLocked, positionUnlockAt, selectedLockDays, unlockProgress.daysLeft);
   const contractUrl = ARC_TESTNET_CHAIN.explorerUrl && ARC_POOL_CONTRACT_ADDRESS
     ? `${ARC_TESTNET_CHAIN.explorerUrl.replace(/\/$/, "")}/address/${ARC_POOL_CONTRACT_ADDRESS}`
     : "";
@@ -603,14 +605,15 @@ export function YieldDashboard() {
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
                   <div className="text-sm font-semibold">Position timeline</div>
-                  <div className="text-xs text-muted-foreground">
-                    {positionLocked ? `${unlockProgress.daysLeft} days left until unlock` : selectedLockDays > 0 ? "Deposit to start lock timeline" : "Flexible strategy can withdraw anytime"}
-                  </div>
+                  <div className="text-xs text-muted-foreground">{timelineLabel}</div>
                 </div>
                 <Lock className="h-4 w-4 text-primary" />
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-secondary">
-                <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${unlockProgress.percent}%` }} />
+                <div
+                  className={hasActivePosition ? "h-full rounded-full bg-primary transition-all" : "h-full rounded-full bg-muted transition-all"}
+                  style={{ width: `${unlockProgress.percent}%` }}
+                />
               </div>
               <div className="mt-3 grid grid-cols-4 gap-2 text-center text-[11px] text-muted-foreground">
                 <span>Deposited</span>
@@ -931,6 +934,15 @@ function inferPositionLockDays(unlockAt: number, positionApy: number, selectedLo
     .filter((option) => option.days > 0)
     .find((option) => Math.abs(positionApy - option.apy) < 0.75);
   return matchedLock?.days ?? selectedLockDays;
+}
+
+function getTimelineLabel(hasActivePosition: boolean, positionLocked: boolean, unlockAt: number, selectedLockDays: number, daysLeft: number) {
+  if (!hasActivePosition) {
+    return selectedLockDays > 0 ? "Deposit to start lock timeline" : "Deposit to start earning";
+  }
+  if (positionLocked) return `${daysLeft} days left until unlock`;
+  if (unlockAt > 0) return "Unlocked and ready to withdraw";
+  return "Flexible position can withdraw anytime";
 }
 
 function getUnlockProgress(unlockAt: number, lockDays: number) {
