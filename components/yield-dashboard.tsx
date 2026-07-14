@@ -97,9 +97,12 @@ export function YieldDashboard() {
     position.principal <= 0 ||
     positionLocked;
   const hasActivePosition = position.principal > 0;
-  const positionLockDays = inferPositionLockDays(positionUnlockAt, positionApy, selectedLockDays);
-  const unlockProgress = hasActivePosition ? getUnlockProgress(positionUnlockAt, positionLockDays) : { percent: 0, daysLeft: 0 };
-  const timelineLabel = getTimelineLabel(hasActivePosition, positionLocked, positionUnlockAt, selectedLockDays, unlockProgress.daysLeft);
+  const activePositionLockDays = inferPositionLockDays(positionUnlockAt, positionApy);
+  const activePositionStrategy = hasActivePosition ? getStrategyName(activePositionLockDays) : "No active stake";
+  const selectedStrategyHasPosition = hasActivePosition && activePositionLockDays === selectedLockDays;
+  const unlockProgress = selectedStrategyHasPosition ? getUnlockProgress(positionUnlockAt, activePositionLockDays) : { percent: 0, daysLeft: 0 };
+  const timelineLabel = getTimelineLabel(selectedLockDays, selectedStrategyHasPosition, positionLocked, positionUnlockAt, unlockProgress.daysLeft);
+  const timelineSteps = getTimelineSteps(selectedLockDays);
   const contractUrl = ARC_TESTNET_CHAIN.explorerUrl && ARC_POOL_CONTRACT_ADDRESS
     ? `${ARC_TESTNET_CHAIN.explorerUrl.replace(/\/$/, "")}/address/${ARC_POOL_CONTRACT_ADDRESS}`
     : "";
@@ -452,6 +455,7 @@ export function YieldDashboard() {
                   label={option.label}
                   apy={option.apy + ARC_EARLY_BOOST_APY}
                   description={getStrategyDescription(option.days)}
+                  activeStakeAmount={hasActivePosition && activePositionLockDays === option.days ? `${formatAmount(position.principal)} ${ARC_POOL_TOKEN_SYMBOL}` : ""}
                   onClick={() => setSelectedLockDays(option.days)}
                 />
               ))}
@@ -596,7 +600,8 @@ export function YieldDashboard() {
                 {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : "Not connected"}
               </span>
             </div>
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-4">
+              <HeroMetric label="Active strategy" value={activePositionStrategy} />
               <HeroMetric label="Amount staked" value={`${formatAmount(position.principal)} ${ARC_POOL_TOKEN_SYMBOL}`} />
               <HeroMetric label="Pending rewards" value={`${formatAmount(positionRewards)} ${ARC_POOL_TOKEN_SYMBOL}`} />
               <HeroMetric label="Current APY" value={formatPercent(position.apy)} />
@@ -604,22 +609,19 @@ export function YieldDashboard() {
             <div className="mt-3 rounded-md border border-border bg-background/40 p-3">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
-                  <div className="text-sm font-semibold">Position timeline</div>
+                  <div className="text-sm font-semibold">Strategy timeline</div>
                   <div className="text-xs text-muted-foreground">{timelineLabel}</div>
                 </div>
                 <Lock className="h-4 w-4 text-primary" />
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-secondary">
                 <div
-                  className={hasActivePosition ? "h-full rounded-full bg-primary transition-all" : "h-full rounded-full bg-muted transition-all"}
+                  className={selectedStrategyHasPosition ? "h-full rounded-full bg-primary transition-all" : "h-full rounded-full bg-muted transition-all"}
                   style={{ width: `${unlockProgress.percent}%` }}
                 />
               </div>
               <div className="mt-3 grid grid-cols-4 gap-2 text-center text-[11px] text-muted-foreground">
-                <span>Deposited</span>
-                <span>Earning</span>
-                <span>Unlock</span>
-                <span>Withdraw</span>
+                {timelineSteps.map((step) => <span key={step}>{step}</span>)}
               </div>
             </div>
           </Panel>
@@ -699,7 +701,7 @@ export function YieldDashboard() {
               <Achievement label="First deposit" active={position.principal > 0} />
               <Achievement label="Auto-compounder" active={positionAutoCompound || autoCompound} />
               <Achievement label="Early pool user" active={walletAddress !== null} />
-              <Achievement label="30-day maximizer" active={selectedLockDays === 30} />
+              <Achievement label="30-day maximizer" active={hasActivePosition && activePositionLockDays === 30} />
             </div>
           </Panel>
         </aside>
@@ -761,12 +763,14 @@ function StrategyCard({
   label,
   apy,
   description,
+  activeStakeAmount,
   onClick
 }: {
   active: boolean;
   label: string;
   apy: number;
   description: string;
+  activeStakeAmount: string;
   onClick: () => void;
 }) {
   return (
@@ -778,10 +782,15 @@ function StrategyCard({
         : "w-full rounded-md border border-border bg-background/40 p-2.5 text-left transition-colors hover:border-primary/50 hover:bg-secondary/80"}
     >
       <span className="flex items-start justify-between gap-3">
-        <span>
-          <span className="block text-sm font-semibold">{label}</span>
-          <span className="mt-1 block text-xs text-muted-foreground">{description}</span>
-        </span>
+          <span>
+            <span className="block text-sm font-semibold">{label}</span>
+            <span className="mt-1 block text-xs text-muted-foreground">{description}</span>
+            {activeStakeAmount && (
+              <span className="mt-2 inline-flex rounded-md border border-primary/30 bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">
+                Active stake: {activeStakeAmount}
+              </span>
+            )}
+          </span>
         <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-primary">{formatPercent(apy)}</span>
       </span>
     </button>
@@ -928,21 +937,31 @@ function getStrategyDescription(days: number) {
   return "Withdraw anytime, easiest way to test the pool.";
 }
 
-function inferPositionLockDays(unlockAt: number, positionApy: number, selectedLockDays: number) {
-  if (!unlockAt || unlockAt <= Math.floor(Date.now() / 1000)) return selectedLockDays;
+function getStrategyName(days: number) {
+  return LOCK_OPTIONS.find((option) => option.days === days)?.label ?? "Unknown";
+}
+
+function inferPositionLockDays(unlockAt: number, positionApy: number) {
+  if (!unlockAt) return 0;
   const matchedLock = LOCK_OPTIONS
     .filter((option) => option.days > 0)
     .find((option) => Math.abs(positionApy - option.apy) < 0.75);
-  return matchedLock?.days ?? selectedLockDays;
+  return matchedLock?.days ?? 0;
 }
 
-function getTimelineLabel(hasActivePosition: boolean, positionLocked: boolean, unlockAt: number, selectedLockDays: number, daysLeft: number) {
-  if (!hasActivePosition) {
-    return selectedLockDays > 0 ? "Deposit to start lock timeline" : "Deposit to start earning";
+function getTimelineLabel(selectedLockDays: number, selectedStrategyHasPosition: boolean, positionLocked: boolean, unlockAt: number, daysLeft: number) {
+  if (!selectedStrategyHasPosition) {
+    if (selectedLockDays === 0) return "Flexible strategy: withdraw anytime after deposit";
+    return `${selectedLockDays}-day strategy: unlocks ${selectedLockDays} days after deposit`;
   }
   if (positionLocked) return `${daysLeft} days left until unlock`;
   if (unlockAt > 0) return "Unlocked and ready to withdraw";
   return "Flexible position can withdraw anytime";
+}
+
+function getTimelineSteps(selectedLockDays: number) {
+  if (selectedLockDays === 0) return ["Deposit", "Earning", "No lock", "Withdraw"];
+  return ["Deposited", "Earning", `Day ${selectedLockDays}`, "Withdraw"];
 }
 
 function getUnlockProgress(unlockAt: number, lockDays: number) {
