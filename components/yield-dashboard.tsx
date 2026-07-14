@@ -3,7 +3,21 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { decodeFunctionResult, encodeFunctionData, formatUnits, parseUnits } from "viem";
-import { ArrowDownToLine, ArrowUpFromLine, Gift, Wallet } from "lucide-react";
+import {
+  Activity,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  CheckCircle2,
+  ExternalLink,
+  Gift,
+  Lock,
+  RefreshCw,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  Wallet,
+  Zap
+} from "lucide-react";
 import { formatPercent } from "@/lib/utils";
 import { ARC_TESTNET_CHAIN } from "@/services/arc";
 import {
@@ -82,9 +96,17 @@ export function YieldDashboard() {
     withdrawTooHigh ||
     position.principal <= 0 ||
     positionLocked;
+  const positionLockDays = inferPositionLockDays(positionUnlockAt, positionApy, selectedLockDays);
+  const unlockProgress = getUnlockProgress(positionUnlockAt, positionLockDays);
+  const contractUrl = ARC_TESTNET_CHAIN.explorerUrl && ARC_POOL_CONTRACT_ADDRESS
+    ? `${ARC_TESTNET_CHAIN.explorerUrl.replace(/\/$/, "")}/address/${ARC_POOL_CONTRACT_ADDRESS}`
+    : "";
+  const positionRewards = contractReady ? onchainAccruedRewards : position.monthlyRewards;
 
   useEffect(() => {
     void refreshPoolBalance();
+    // The first pool read is intentionally a one-time hydration call.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function connectWallet() {
@@ -110,7 +132,7 @@ export function YieldDashboard() {
           chainId: `0x${ARC_TESTNET_CHAIN.chainId.toString(16)}`,
           chainName: ARC_TESTNET_CHAIN.name,
           rpcUrls: [ARC_TESTNET_CHAIN.rpcUrl],
-          nativeCurrency: { name: "ARC", symbol: "ARC", decimals: 18 }
+          nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 }
         };
         if (ARC_TESTNET_CHAIN.explorerUrl) chainParams.blockExplorerUrls = [ARC_TESTNET_CHAIN.explorerUrl];
 
@@ -378,11 +400,20 @@ export function YieldDashboard() {
   }
 
   return (
-    <main className="min-h-screen bg-background">
-      <div className="border-b bg-card">
-        <div className="mx-auto flex max-w-[1500px] items-center justify-between px-5 py-4">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-normal">ARC Yield Pool</h1>
+    <main className="min-h-screen bg-background text-foreground">
+      <div className="border-b border-border/70 bg-background/95">
+        <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-4 px-5 py-4">
+          <div className="flex items-center gap-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-md border border-primary/30 bg-primary/10 text-primary">
+              <Zap className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-semibold tracking-normal">ARC Yield V3</h1>
+                <span className="rounded-md border border-primary/30 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">Live</span>
+              </div>
+              <p className="text-sm text-muted-foreground">USDC yield dashboard on Arc Testnet</p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <a
@@ -401,193 +432,284 @@ export function YieldDashboard() {
         </div>
       </div>
 
-      <div className="mx-auto grid max-w-[1120px] grid-cols-1 gap-4 p-4 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <aside className="space-y-4 rounded-lg border bg-card p-4 lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)]">
-          <div className="grid grid-cols-2 rounded-md border bg-secondary p-1">
-            <TabButton active={activeTab === "deposit"} onClick={() => setActiveTab("deposit")}>Deposit</TabButton>
-            <TabButton active={activeTab === "withdraw"} onClick={() => setActiveTab("withdraw")}>Withdraw</TabButton>
-          </div>
-
-          <div>
-            <h2 className="text-sm font-semibold">{activeTab === "deposit" ? "Deposit" : "Withdraw"}</h2>
-            <p className="text-xs text-muted-foreground">
-              {activeTab === "deposit" ? "Deposit USDC (ARC) into your pool" : "Withdraw staked USDC (ARC) or claim rewards"}
-            </p>
-          </div>
-
-          <div className="rounded-md border p-3 text-sm">
-            <InfoLine label="Pool owner" value={ARC_POOL_OWNER} />
-            <InfoLine label="Network" value={ARC_TESTNET_CHAIN.name} />
-            <InfoLine label="Contract" value={contractReady ? `${ARC_POOL_CONTRACT_ADDRESS.slice(0, 6)}...${ARC_POOL_CONTRACT_ADDRESS.slice(-4)}` : "Demo mode"} />
-          </div>
-
-          {activeTab === "deposit" ? (
-            <>
-              <div className="space-y-2">
-                <div className="text-sm text-muted-foreground">Lock period</div>
-                <div className="grid grid-cols-3 gap-2">
-                  {LOCK_OPTIONS.map((option) => (
-                    <LockOptionButton
-                      key={option.days}
-                      active={selectedLockDays === option.days}
-                      label={option.label}
-                      apy={`${formatPercent(option.apy)}`}
-                      onClick={() => setSelectedLockDays(option.days)}
-                    />
-                  ))}
-                </div>
+      <div className="mx-auto grid max-w-[1500px] grid-cols-1 gap-4 p-4 xl:grid-cols-[360px_minmax(0,1fr)_360px]">
+        <aside className="space-y-4 xl:sticky xl:top-4 xl:h-[calc(100vh-2rem)] xl:overflow-y-auto">
+          <Panel>
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold">Choose strategy</h2>
+                <p className="text-xs text-muted-foreground">Same pool, different yield paths.</p>
               </div>
-              <button
-                type="button"
-                onClick={() => setAutoCompound((current) => !current)}
-                className="flex w-full items-center justify-between rounded-md border p-3 text-left text-sm transition-colors hover:bg-secondary"
-              >
-                <span>
-                  <span className="block font-medium">Auto-compound</span>
-                  <span className="text-xs text-muted-foreground">Roll rewards back into principal</span>
-                </span>
-                <span className={autoCompound ? "rounded-md bg-primary px-2 py-1 text-xs font-semibold text-primary-foreground" : "rounded-md bg-secondary px-2 py-1 text-xs font-semibold"}>
-                  {autoCompound ? "On" : "Off"}
-                </span>
-              </button>
-              <label className="block space-y-2 text-sm">
-                <span className="text-muted-foreground">Amount ({ARC_POOL_TOKEN_SYMBOL})</span>
-                <Input
-                  type="number"
-                  min={0}
-                  placeholder="0.00"
-                  value={depositAmount}
-                  onChange={(event) => {
-                    setDepositAmount(event.target.value);
-                    setWalletError(null);
-                  }}
+              <Target className="h-4 w-4 text-primary" />
+            </div>
+            <div className="space-y-2">
+              {LOCK_OPTIONS.map((option) => (
+                <StrategyCard
+                  key={option.days}
+                  active={selectedLockDays === option.days}
+                  label={option.label}
+                  apy={option.apy + ARC_EARLY_BOOST_APY}
+                  description={getStrategyDescription(option.days)}
+                  onClick={() => setSelectedLockDays(option.days)}
                 />
-              </label>
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Wallet balance</span>
-                <span>{walletAddress ? `${walletUsdcBalance.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}` : "Please connect wallet"}</span>
-              </div>
-              <div className="grid grid-cols-4 gap-2">
-                <QuickAmountButton label="25%" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setQuickAmount(walletUsdcBalance * 0.25)} />
-                <QuickAmountButton label="50%" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setQuickAmount(walletUsdcBalance * 0.5)} />
-                <QuickAmountButton label="75%" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setQuickAmount(walletUsdcBalance * 0.75)} />
-                <QuickAmountButton label="Max" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setQuickAmount(walletUsdcBalance)} />
-              </div>
-              <div className="rounded-md border p-3 text-xs text-muted-foreground">
-                Effective APY: <span className="font-semibold text-foreground">{formatPercent(effectiveDepositApy)}</span>
-                <span className="ml-1">includes early boost +{formatPercent(ARC_EARLY_BOOST_APY)}</span>
-              </div>
-              {depositTooHigh && <p className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">Insufficient {ARC_POOL_TOKEN_SYMBOL} balance.</p>}
-            </>
-          ) : (
-            <>
-              <div className="space-y-3 rounded-md border p-3 text-sm">
-                <InfoLine label="Amount staked" value={`${position.principal.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
-                <InfoLine label="Accrued rewards" value={`${(contractReady ? onchainAccruedRewards : position.monthlyRewards).toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
-                <InfoLine label="Position APY" value={formatPercent(position.apy)} />
-                <InfoLine label="Mode" value={positionAutoCompound ? "Auto-compound" : "Manual claim"} />
-                <InfoLine label="Unlock" value={positionLocked ? formatUnlock(positionUnlockAt) : "Available"} />
-                <InfoLine label="Estimated yearly" value={`${position.yearlyRewards.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
-              </div>
-              <label className="block space-y-2 text-sm">
-                <span className="text-muted-foreground">Withdraw amount ({ARC_POOL_TOKEN_SYMBOL})</span>
-                <Input
-                  type="number"
-                  min={0}
-                  placeholder="0.00"
-                  value={withdrawAmount}
-                  onChange={(event) => {
-                    setWithdrawAmount(event.target.value);
-                    setWalletError(null);
-                  }}
-                />
-              </label>
-              <div className="grid grid-cols-4 gap-2">
-                <QuickAmountButton label="25%" disabled={!walletAddress || position.principal <= 0} onClick={() => setQuickWithdrawAmount(position.principal * 0.25)} />
-                <QuickAmountButton label="50%" disabled={!walletAddress || position.principal <= 0} onClick={() => setQuickWithdrawAmount(position.principal * 0.5)} />
-                <QuickAmountButton label="75%" disabled={!walletAddress || position.principal <= 0} onClick={() => setQuickWithdrawAmount(position.principal * 0.75)} />
-                <QuickAmountButton label="Max" disabled={!walletAddress || position.principal <= 0} onClick={() => setQuickWithdrawAmount(position.principal)} />
-              </div>
-              {withdrawTooHigh && <p className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">Insufficient staked {ARC_POOL_TOKEN_SYMBOL} balance.</p>}
-            </>
-          )}
+              ))}
+            </div>
+          </Panel>
 
-          {walletError && <p className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">{walletError}</p>}
-          {actionMessage && <p className="overflow-hidden break-words rounded-md border bg-secondary p-2 text-xs text-secondary-foreground">{actionMessage}</p>}
+          <Panel>
+            <div className="mb-4 grid grid-cols-2 rounded-md border border-border bg-secondary/50 p-1">
+              <TabButton active={activeTab === "deposit"} onClick={() => setActiveTab("deposit")}>Deposit</TabButton>
+              <TabButton active={activeTab === "withdraw"} onClick={() => setActiveTab("withdraw")}>Withdraw</TabButton>
+            </div>
 
-          <div className="grid gap-2">
+            <div className="mb-4 rounded-md border border-border bg-background/40 p-3 text-sm">
+              <InfoLine label="Pool owner" value={ARC_POOL_OWNER} />
+              <InfoLine label="Network" value={ARC_TESTNET_CHAIN.name} />
+              <InfoLine label="Contract" value={contractReady ? `${ARC_POOL_CONTRACT_ADDRESS.slice(0, 6)}...${ARC_POOL_CONTRACT_ADDRESS.slice(-4)}` : "Demo mode"} />
+            </div>
+
             {activeTab === "deposit" ? (
-              <Button onClick={() => void sendPoolTransaction("deposit")} disabled={depositDisabled}>
-                <ArrowDownToLine className="h-4 w-4" />
-                Deposit
-              </Button>
+              <div className="space-y-4">
+                <button
+                  type="button"
+                  onClick={() => setAutoCompound((current) => !current)}
+                  className="flex w-full items-center justify-between rounded-md border border-border bg-background/40 p-3 text-left text-sm transition-colors hover:bg-secondary"
+                >
+                  <span>
+                    <span className="block font-medium">Auto-compound</span>
+                    <span className="text-xs text-muted-foreground">Roll rewards back into principal</span>
+                  </span>
+                  <span className={autoCompound ? "rounded-md bg-primary px-2 py-1 text-xs font-semibold text-primary-foreground" : "rounded-md bg-secondary px-2 py-1 text-xs font-semibold"}>
+                    {autoCompound ? "On" : "Off"}
+                  </span>
+                </button>
+                <label className="block space-y-2 text-sm">
+                  <span className="text-muted-foreground">Amount ({ARC_POOL_TOKEN_SYMBOL})</span>
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="0.00"
+                    value={depositAmount}
+                    onChange={(event) => {
+                      setDepositAmount(event.target.value);
+                      setWalletError(null);
+                    }}
+                    className="h-12 text-base"
+                  />
+                </label>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Wallet balance</span>
+                  <span>{walletAddress ? `${formatAmount(walletUsdcBalance)} ${ARC_POOL_TOKEN_SYMBOL}` : "Please connect wallet"}</span>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  <QuickAmountButton label="25%" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setQuickAmount(walletUsdcBalance * 0.25)} />
+                  <QuickAmountButton label="50%" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setQuickAmount(walletUsdcBalance * 0.5)} />
+                  <QuickAmountButton label="75%" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setQuickAmount(walletUsdcBalance * 0.75)} />
+                  <QuickAmountButton label="Max" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setQuickAmount(walletUsdcBalance)} />
+                </div>
+                <PreviewBox
+                  rows={[
+                    ["Selected APY", formatPercent(effectiveDepositApy)],
+                    ["Estimated monthly", `${formatAmount(estimate.monthlyRewards)} ${ARC_POOL_TOKEN_SYMBOL}`],
+                    ["Unlock", selectedLockDays > 0 ? getFutureDate(selectedLockDays) : "Withdraw anytime"]
+                  ]}
+                />
+                {depositTooHigh && <AlertText>Insufficient {ARC_POOL_TOKEN_SYMBOL} balance.</AlertText>}
+                <Button className="h-12 w-full" onClick={() => void sendPoolTransaction("deposit")} disabled={depositDisabled}>
+                  <ArrowDownToLine className="h-4 w-4" />
+                  Deposit
+                </Button>
+              </div>
             ) : (
-              <>
-                <Button onClick={() => void sendPoolTransaction("withdraw")} disabled={withdrawDisabled}>
+              <div className="space-y-4">
+                <PreviewBox
+                  rows={[
+                    ["Staked", `${formatAmount(position.principal)} ${ARC_POOL_TOKEN_SYMBOL}`],
+                    ["Claimable", `${formatAmount(positionRewards)} ${ARC_POOL_TOKEN_SYMBOL}`],
+                    ["Unlock", positionLocked ? formatUnlock(positionUnlockAt) : "Available"]
+                  ]}
+                />
+                <label className="block space-y-2 text-sm">
+                  <span className="text-muted-foreground">Withdraw amount ({ARC_POOL_TOKEN_SYMBOL})</span>
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="0.00"
+                    value={withdrawAmount}
+                    onChange={(event) => {
+                      setWithdrawAmount(event.target.value);
+                      setWalletError(null);
+                    }}
+                    className="h-12 text-base"
+                  />
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  <QuickAmountButton label="25%" disabled={!walletAddress || position.principal <= 0} onClick={() => setQuickWithdrawAmount(position.principal * 0.25)} />
+                  <QuickAmountButton label="50%" disabled={!walletAddress || position.principal <= 0} onClick={() => setQuickWithdrawAmount(position.principal * 0.5)} />
+                  <QuickAmountButton label="75%" disabled={!walletAddress || position.principal <= 0} onClick={() => setQuickWithdrawAmount(position.principal * 0.75)} />
+                  <QuickAmountButton label="Max" disabled={!walletAddress || position.principal <= 0} onClick={() => setQuickWithdrawAmount(position.principal)} />
+                </div>
+                {withdrawTooHigh && <AlertText>Insufficient staked {ARC_POOL_TOKEN_SYMBOL} balance.</AlertText>}
+                <Button className="h-12 w-full" onClick={() => void sendPoolTransaction("withdraw")} disabled={withdrawDisabled}>
                   <ArrowUpFromLine className="h-4 w-4" />
                   Withdraw
                 </Button>
-                <Button variant="outline" onClick={() => void sendPoolTransaction("claim")} disabled={!walletAddress || positionAutoCompound}>
-                  <Gift className="h-4 w-4" />
-                  Claim Rewards
-                </Button>
-                <Button variant="outline" onClick={() => {
-                  void refreshWalletBalance();
-                  void refreshPoolPosition();
-                  void refreshPoolBalance();
-                }} disabled={!walletAddress}>
-                  Refresh Position
-                </Button>
-              </>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant="outline" onClick={() => void sendPoolTransaction("claim")} disabled={!walletAddress || positionAutoCompound}>
+                    <Gift className="h-4 w-4" />
+                    Claim
+                  </Button>
+                  <Button variant="outline" onClick={() => {
+                    void refreshWalletBalance();
+                    void refreshPoolPosition();
+                    void refreshPoolBalance();
+                  }} disabled={!walletAddress}>
+                    <RefreshCw className="h-4 w-4" />
+                    Refresh
+                  </Button>
+                </div>
+              </div>
             )}
-          </div>
+
+            {walletError && <AlertText>{walletError}</AlertText>}
+            {actionMessage && <p className="mt-3 overflow-hidden break-words rounded-md border border-primary/20 bg-primary/10 p-2 text-xs text-primary">{actionMessage}</p>}
+          </Panel>
         </aside>
 
         <section className="space-y-4">
           <div className="grid gap-4 md:grid-cols-4">
-            <StatCard label="Effective APY" value={formatPercent(effectiveDepositApy)} />
-            <StatCard label="Pool balance" value={`${poolTvl.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
-            <StatCard label="Reward reserve" value={`${rewardReserve.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
-            <StatCard label="Pool health" value={poolHealth.label} tone={poolHealth.tone} />
+            <StatCard label="Effective APY" value={formatPercent(effectiveDepositApy)} icon={<Sparkles className="h-4 w-4" />} />
+            <StatCard label="Pool balance" value={`${formatAmount(poolTvl)} ${ARC_POOL_TOKEN_SYMBOL}`} icon={<Activity className="h-4 w-4" />} />
+            <StatCard label="Reward reserve" value={`${formatAmount(rewardReserve)} ${ARC_POOL_TOKEN_SYMBOL}`} icon={<Gift className="h-4 w-4" />} />
+            <StatCard label="Pool health" value={poolHealth.label} tone={poolHealth.tone} icon={<ShieldCheck className="h-4 w-4" />} />
           </div>
 
-          <Card>
-            <CardContent className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
-              <DetailMetric label="Deposit amount" value={`${estimate.principal.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
-              <DetailMetric label="Daily rewards" value={`${estimate.dailyRewards.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
-              <DetailMetric label="Monthly rewards" value={`${estimate.monthlyRewards.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
-              <DetailMetric label="Yearly rewards" value={`${estimate.yearlyRewards.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
-              <DetailMetric label="Auto-compounded yearly" value={`${compoundedYearlyRewards.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
-              <DetailMetric label="Total after 1 year" value={`${estimate.totalAfterYear.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
-              <DetailMetric label="APY" value={formatPercent(estimate.apy)} />
-              <DetailMetric label="Lock" value={selectedLock.label} />
-            </CardContent>
-          </Card>
+          <Panel>
+            <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold">Your position</h2>
+                <p className="text-sm text-muted-foreground">Track stake, rewards, unlock status, and projected income.</p>
+              </div>
+              <span className="rounded-md border border-border bg-secondary px-3 py-1 text-xs font-semibold">
+                {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : "Not connected"}
+              </span>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              <HeroMetric label="Amount staked" value={`${formatAmount(position.principal)} ${ARC_POOL_TOKEN_SYMBOL}`} />
+              <HeroMetric label="Pending rewards" value={`${formatAmount(positionRewards)} ${ARC_POOL_TOKEN_SYMBOL}`} />
+              <HeroMetric label="Current APY" value={formatPercent(position.apy)} />
+            </div>
+            <div className="mt-5 rounded-md border border-border bg-background/40 p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold">Position timeline</div>
+                  <div className="text-xs text-muted-foreground">
+                    {positionLocked ? `${unlockProgress.daysLeft} days left until unlock` : selectedLockDays > 0 ? "Deposit to start lock timeline" : "Flexible strategy can withdraw anytime"}
+                  </div>
+                </div>
+                <Lock className="h-4 w-4 text-primary" />
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-secondary">
+                <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${unlockProgress.percent}%` }} />
+              </div>
+              <div className="mt-3 grid grid-cols-4 gap-2 text-center text-[11px] text-muted-foreground">
+                <span>Deposited</span>
+                <span>Earning</span>
+                <span>Unlock</span>
+                <span>Withdraw</span>
+              </div>
+            </div>
+          </Panel>
 
-          <Card>
-            <CardContent className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-4">
-              <DetailMetric label="Total staked" value={`${totalPrincipal.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
-              <DetailMetric label="Reward reserve" value={`${rewardReserve.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
-              <DetailMetric label="Yearly obligation" value={`${yearlyRewardObligation.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
-              <DetailMetric label="Reward runway" value={runwayDays > 0 ? `${Math.floor(runwayDays).toLocaleString()} days` : "No active stake"} />
-              <DetailMetric label="Top depositor bonus" value="Admin distributed" />
-            </CardContent>
-          </Card>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Panel>
+              <SectionTitle icon={<Target className="h-4 w-4" />} title="Reward projection" />
+              <div className="grid gap-3 sm:grid-cols-3">
+                <DetailMetric label="Daily" value={`${formatAmount(position.dailyRewards)} ${ARC_POOL_TOKEN_SYMBOL}`} />
+                <DetailMetric label="Monthly" value={`${formatAmount(position.monthlyRewards)} ${ARC_POOL_TOKEN_SYMBOL}`} />
+                <DetailMetric label="Yearly" value={`${formatAmount(position.yearlyRewards)} ${ARC_POOL_TOKEN_SYMBOL}`} />
+              </div>
+            </Panel>
 
-          <Card>
-            <CardContent className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
-              <DetailMetric label="Wallet" value={walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : "Not connected"} />
-              <DetailMetric label="Amount staked" value={`${position.principal.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
-              <DetailMetric label="Accrued rewards" value={`${(contractReady ? onchainAccruedRewards : position.monthlyRewards).toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL} est.`} />
-              <DetailMetric label="Estimated daily" value={`${position.dailyRewards.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
-              <DetailMetric label="Estimated monthly" value={`${position.monthlyRewards.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
-              <DetailMetric label="Estimated yearly" value={`${position.yearlyRewards.toLocaleString()} ${ARC_POOL_TOKEN_SYMBOL}`} />
-            </CardContent>
-          </Card>
+            <Panel>
+              <SectionTitle icon={<Activity className="h-4 w-4" />} title="Pool transparency" />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <DetailMetric label="Total staked" value={`${formatAmount(totalPrincipal)} ${ARC_POOL_TOKEN_SYMBOL}`} />
+                <DetailMetric label="Reward runway" value={runwayDays > 0 ? `${Math.floor(runwayDays).toLocaleString()} days` : "No active stake"} />
+                <DetailMetric label="Yearly obligation" value={`${formatAmount(yearlyRewardObligation)} ${ARC_POOL_TOKEN_SYMBOL}`} />
+                <DetailMetric label="Reserve coverage" value={totalPrincipal > 0 ? `${(rewardReserve / Math.max(yearlyRewardObligation, 1)).toFixed(2)}x` : "Ready"} />
+              </div>
+            </Panel>
+          </div>
+
+          <Panel>
+            <SectionTitle icon={<Activity className="h-4 w-4" />} title="Recent activity" />
+            <div className="space-y-3">
+              <ActivityRow title={actionMessage ?? "No transaction in this session yet"} detail={actionMessage ? "Latest wallet action submitted from this dashboard." : "Connect your wallet and deposit to start building activity."} active={Boolean(actionMessage)} />
+              <ActivityRow title="Pool health refreshed from Arc Testnet" detail={`${formatAmount(poolBalance)} ${ARC_POOL_TOKEN_SYMBOL} currently held by the pool contract.`} active />
+              <ActivityRow title="Strategy selected" detail={`${selectedLock.label} with ${formatPercent(effectiveDepositApy)} effective APY.`} active />
+            </div>
+          </Panel>
         </section>
 
+        <aside className="space-y-4">
+          <Panel>
+            <SectionTitle icon={<Sparkles className="h-4 w-4" />} title="Yield simulator" />
+            <div className="rounded-md border border-border bg-background/40 p-4">
+              <div className="text-xs text-muted-foreground">Deposit preview</div>
+              <div className="mt-1 text-3xl font-semibold">{formatAmount(estimate.principal)} {ARC_POOL_TOKEN_SYMBOL}</div>
+              <div className="mt-4 grid gap-3">
+                <InfoLine label="Daily" value={`${formatAmount(estimate.dailyRewards)} ${ARC_POOL_TOKEN_SYMBOL}`} />
+                <InfoLine label="Monthly" value={`${formatAmount(estimate.monthlyRewards)} ${ARC_POOL_TOKEN_SYMBOL}`} />
+                <InfoLine label="Yearly" value={`${formatAmount(estimate.yearlyRewards)} ${ARC_POOL_TOKEN_SYMBOL}`} />
+                <InfoLine label="Auto-compounded" value={`${formatAmount(compoundedYearlyRewards)} ${ARC_POOL_TOKEN_SYMBOL}`} />
+              </div>
+            </div>
+          </Panel>
+
+          <Panel>
+            <SectionTitle icon={<ShieldCheck className="h-4 w-4" />} title="Pool health" />
+            <div className="flex items-center gap-4">
+              <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10">
+                <div className="text-center">
+                  <div className={`text-lg font-semibold ${getToneTextClass(poolHealth.tone)}`}>{poolHealth.label}</div>
+                  <div className="text-[11px] text-muted-foreground">status</div>
+                </div>
+              </div>
+              <div className="min-w-0 flex-1 space-y-2 text-sm">
+                <InfoLine label="Reserve" value={`${formatAmount(rewardReserve)} ${ARC_POOL_TOKEN_SYMBOL}`} />
+                <InfoLine label="Runway" value={runwayDays > 0 ? `${Math.floor(runwayDays)} days` : "Ready"} />
+                <InfoLine label="Deposits" value={`${formatAmount(totalPrincipal)} ${ARC_POOL_TOKEN_SYMBOL}`} />
+              </div>
+            </div>
+            {contractUrl && (
+              <a href={contractUrl} target="_blank" rel="noreferrer" className="mt-4 flex items-center justify-between rounded-md border border-border bg-background/40 p-3 text-sm text-muted-foreground transition-colors hover:text-foreground">
+                View pool contract
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            )}
+          </Panel>
+
+          <Panel>
+            <SectionTitle icon={<CheckCircle2 className="h-4 w-4" />} title="Achievements" />
+            <div className="grid gap-2">
+              <Achievement label="First deposit" active={position.principal > 0} />
+              <Achievement label="Auto-compounder" active={positionAutoCompound || autoCompound} />
+              <Achievement label="Early pool user" active={walletAddress !== null} />
+              <Achievement label="30-day maximizer" active={selectedLockDays === 30} />
+            </div>
+          </Panel>
+        </aside>
       </div>
     </main>
+  );
+}
+
+function Panel({ children }: { children: ReactNode }) {
+  return (
+    <Card className="border-border/80 bg-card/95 shadow-none">
+      <CardContent className="p-4">{children}</CardContent>
+    </Card>
   );
 }
 
@@ -595,7 +717,16 @@ function InfoLine({ label, value }: { label: string; value: string }) {
   return (
     <div className="mb-2 flex justify-between gap-3 last:mb-0">
       <span className="text-muted-foreground">{label}</span>
-      <span className="text-right font-medium">{value}</span>
+      <span className="break-words text-right font-medium">{value}</span>
+    </div>
+  );
+}
+
+function SectionTitle({ icon, title }: { icon: ReactNode; title: string }) {
+  return (
+    <div className="mb-4 flex items-center gap-2 text-base font-semibold">
+      <span className="text-primary">{icon}</span>
+      {title}
     </div>
   );
 }
@@ -614,7 +745,7 @@ function TabButton({
       type="button"
       onClick={onClick}
       className={active
-        ? "h-9 rounded-md bg-card text-sm font-semibold shadow-sm"
+        ? "h-9 rounded-md bg-primary text-sm font-semibold text-primary-foreground"
         : "h-9 rounded-md text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"}
     >
       {children}
@@ -622,15 +753,17 @@ function TabButton({
   );
 }
 
-function LockOptionButton({
+function StrategyCard({
   active,
   label,
   apy,
+  description,
   onClick
 }: {
   active: boolean;
   label: string;
-  apy: string;
+  apy: number;
+  description: string;
   onClick: () => void;
 }) {
   return (
@@ -638,36 +771,58 @@ function LockOptionButton({
       type="button"
       onClick={onClick}
       className={active
-        ? "rounded-md border border-primary bg-primary/10 p-2 text-left"
-        : "rounded-md border bg-background p-2 text-left transition-colors hover:bg-secondary"}
+        ? "w-full rounded-md border border-primary bg-primary/10 p-3 text-left"
+        : "w-full rounded-md border border-border bg-background/40 p-3 text-left transition-colors hover:border-primary/50 hover:bg-secondary/80"}
     >
-      <span className="block text-xs font-semibold">{label}</span>
-      <span className="text-xs text-muted-foreground">{apy} APY</span>
+      <span className="flex items-start justify-between gap-3">
+        <span>
+          <span className="block text-sm font-semibold">{label}</span>
+          <span className="mt-1 block text-xs text-muted-foreground">{description}</span>
+        </span>
+        <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-primary">{formatPercent(apy)}</span>
+      </span>
     </button>
   );
 }
 
-function StatCard({ label, value, tone = "default" }: { label: string; value: string; tone?: "default" | "healthy" | "watch" | "low" }) {
-  const toneClass =
-    tone === "healthy" ? "text-primary" :
-    tone === "watch" ? "text-accent-foreground" :
-    tone === "low" ? "text-destructive" : "";
-
+function StatCard({
+  label,
+  value,
+  icon,
+  tone = "default"
+}: {
+  label: string;
+  value: string;
+  icon: ReactNode;
+  tone?: "default" | "healthy" | "watch" | "low";
+}) {
   return (
-    <Card>
+    <Card className="border-border/80 bg-card/95 shadow-none">
       <CardContent className="p-4">
-        <div className="text-xs text-muted-foreground">{label}</div>
-        <div className={`mt-1 text-xl font-semibold ${toneClass}`}>{value}</div>
+        <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+          <span>{label}</span>
+          <span className={getToneTextClass(tone)}>{icon}</span>
+        </div>
+        <div className={`mt-2 text-xl font-semibold ${getToneTextClass(tone)}`}>{value}</div>
       </CardContent>
     </Card>
   );
 }
 
+function HeroMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border bg-background/40 p-4">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="mt-2 text-2xl font-semibold">{value}</div>
+    </div>
+  );
+}
+
 function DetailMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border p-3">
+    <div className="rounded-md border border-border bg-background/40 p-3">
       <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-1 text-lg font-semibold">{value}</div>
+      <div className="mt-1 text-base font-semibold">{value}</div>
     </div>
   );
 }
@@ -686,16 +841,63 @@ function QuickAmountButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="h-9 rounded-md border bg-background text-xs font-medium transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+      className="h-10 rounded-md border border-border bg-background/40 text-xs font-semibold transition-colors hover:border-primary/50 hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
     >
       {label}
     </button>
   );
 }
 
+function PreviewBox({ rows }: { rows: [string, string][] }) {
+  return (
+    <div className="rounded-md border border-border bg-background/40 p-3 text-sm">
+      {rows.map(([label, value]) => (
+        <InfoLine key={label} label={label} value={value} />
+      ))}
+    </div>
+  );
+}
+
+function ActivityRow({ title, detail, active }: { title: string; detail: string; active: boolean }) {
+  return (
+    <div className="flex gap-3 rounded-md border border-border bg-background/40 p-3">
+      <span className={active ? "mt-1 h-2 w-2 rounded-full bg-primary" : "mt-1 h-2 w-2 rounded-full bg-muted"} />
+      <span>
+        <span className="block text-sm font-semibold">{title}</span>
+        <span className="text-xs text-muted-foreground">{detail}</span>
+      </span>
+    </div>
+  );
+}
+
+function Achievement({ label, active }: { label: string; active: boolean }) {
+  return (
+    <div className={active
+      ? "flex items-center justify-between rounded-md border border-primary/40 bg-primary/10 p-3 text-sm"
+      : "flex items-center justify-between rounded-md border border-border bg-background/40 p-3 text-sm text-muted-foreground"}
+    >
+      <span>{label}</span>
+      <CheckCircle2 className={active ? "h-4 w-4 text-primary" : "h-4 w-4"} />
+    </div>
+  );
+}
+
+function AlertText({ children }: { children: ReactNode }) {
+  return (
+    <p className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">{children}</p>
+  );
+}
+
 function formatTokenAmount(value: number) {
   if (!Number.isFinite(value) || value <= 0) return "";
   return Number(value.toFixed(6)).toString();
+}
+
+function formatAmount(value: number) {
+  if (!Number.isFinite(value)) return "0";
+  return new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: value >= 100 ? 2 : 6
+  }).format(value);
 }
 
 function formatUnlock(timestamp: number) {
@@ -708,10 +910,49 @@ function formatUnlock(timestamp: number) {
   }).format(new Date(timestamp * 1000));
 }
 
+function getFutureDate(days: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric"
+  }).format(date);
+}
+
+function getStrategyDescription(days: number) {
+  if (days === 30) return "Higher APY for committed testnet depositors.";
+  if (days === 7) return "Short lock with a small yield boost.";
+  return "Withdraw anytime, easiest way to test the pool.";
+}
+
+function inferPositionLockDays(unlockAt: number, positionApy: number, selectedLockDays: number) {
+  if (!unlockAt || unlockAt <= Math.floor(Date.now() / 1000)) return selectedLockDays;
+  const matchedLock = LOCK_OPTIONS
+    .filter((option) => option.days > 0)
+    .find((option) => Math.abs(positionApy - option.apy) < 0.75);
+  return matchedLock?.days ?? selectedLockDays;
+}
+
+function getUnlockProgress(unlockAt: number, lockDays: number) {
+  const now = Math.floor(Date.now() / 1000);
+  if (!unlockAt || lockDays <= 0 || unlockAt <= now) return { percent: unlockAt ? 100 : 0, daysLeft: 0 };
+  const total = lockDays * 24 * 60 * 60;
+  const remaining = Math.max(0, unlockAt - now);
+  const percent = Math.min(100, Math.max(0, ((total - remaining) / total) * 100));
+  return { percent, daysLeft: Math.ceil(remaining / 86400) };
+}
+
 function getPoolHealth(runwayDays: number, rewardReserve: number, totalPrincipal: number) {
   if (totalPrincipal <= 0) return { label: "Ready", tone: "default" as const };
   if (rewardReserve <= 0) return { label: "Critical", tone: "low" as const };
   if (runwayDays < 30) return { label: "Low", tone: "low" as const };
   if (runwayDays < 90) return { label: "Watch", tone: "watch" as const };
-  return { label: "Healthy", tone: "healthy" as const };
+  return { label: "Strong", tone: "healthy" as const };
+}
+
+function getToneTextClass(tone: "default" | "healthy" | "watch" | "low") {
+  if (tone === "healthy") return "text-primary";
+  if (tone === "watch") return "text-accent";
+  if (tone === "low") return "text-destructive";
+  return "";
 }
