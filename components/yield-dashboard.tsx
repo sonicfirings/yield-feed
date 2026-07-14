@@ -60,6 +60,7 @@ export function YieldDashboard() {
   const [demoStakedAmount, setDemoStakedAmount] = useState(0);
   const [onchainStakedAmount, setOnchainStakedAmount] = useState(0);
   const [onchainAccruedRewards, setOnchainAccruedRewards] = useState(0);
+  const [positionUpdatedAt, setPositionUpdatedAt] = useState(0);
   const [positionUnlockAt, setPositionUnlockAt] = useState(0);
   const [positionApy, setPositionApy] = useState(ARC_POOL_APY);
   const [positionAutoCompound, setPositionAutoCompound] = useState(false);
@@ -97,9 +98,12 @@ export function YieldDashboard() {
     position.principal <= 0 ||
     positionLocked;
   const hasActivePosition = position.principal > 0;
-  const activePositionLockDays = inferPositionLockDays(positionUnlockAt, positionApy);
+  const activePositionLockDays = inferPositionLockDays(positionUpdatedAt, positionUnlockAt, positionApy);
   const activePositionStrategy = hasActivePosition ? getStrategyName(activePositionLockDays) : "No active stake";
   const selectedStrategyHasPosition = hasActivePosition && activePositionLockDays === selectedLockDays;
+  const strategyMismatch = hasActivePosition && activePositionLockDays !== selectedLockDays;
+  const depositBlockedByStrategy = contractReady && strategyMismatch;
+  const finalDepositDisabled = depositDisabled || depositBlockedByStrategy;
   const unlockProgress = selectedStrategyHasPosition ? getUnlockProgress(positionUnlockAt, activePositionLockDays) : { percent: 0, daysLeft: 0 };
   const timelineLabel = getTimelineLabel(selectedLockDays, selectedStrategyHasPosition, positionLocked, positionUnlockAt, unlockProgress.daysLeft);
   const timelineSteps = getTimelineSteps(selectedLockDays);
@@ -261,7 +265,7 @@ export function YieldDashboard() {
         params: [{ to: ARC_POOL_CONTRACT_ADDRESS, data: pendingRewardsData }, "latest"]
       }) as `0x${string}`;
 
-      const [principal, , , unlockAt, apyBps, autoCompoundEnabled] = decodeFunctionResult({
+      const [principal, , updatedAt, unlockAt, apyBps, autoCompoundEnabled] = decodeFunctionResult({
         abi: ARC_YIELD_POOL_ABI,
         functionName: "positions",
         data: rawPosition
@@ -274,6 +278,7 @@ export function YieldDashboard() {
 
       setOnchainStakedAmount(Number(formatUnits(principal, ARC_POOL_TOKEN_DECIMALS)));
       setOnchainAccruedRewards(Number(formatUnits(rewards, ARC_POOL_TOKEN_DECIMALS)));
+      setPositionUpdatedAt(Number(updatedAt));
       setPositionUnlockAt(Number(unlockAt));
       setPositionApy(Number(apyBps) / 100);
       setPositionAutoCompound(Boolean(autoCompoundEnabled));
@@ -300,6 +305,11 @@ export function YieldDashboard() {
 
     if (action === "deposit" && contractReady && estimate.principal > walletUsdcBalance) {
       setWalletError(`Insufficient ${ARC_POOL_TOKEN_SYMBOL} balance.`);
+      return;
+    }
+
+    if (action === "deposit" && contractReady && strategyMismatch) {
+      setWalletError(`You already have an active ${activePositionStrategy} position. Withdraw after unlock before changing strategy.`);
       return;
     }
 
@@ -521,7 +531,12 @@ export function YieldDashboard() {
                   ]}
                 />
                 {depositTooHigh && <AlertText>Insufficient {ARC_POOL_TOKEN_SYMBOL} balance.</AlertText>}
-                <Button className="h-10 w-full" onClick={() => void sendPoolTransaction("deposit")} disabled={depositDisabled}>
+                {strategyMismatch && (
+                  <AlertText>
+                    Active position is {activePositionStrategy}. This contract supports one merged strategy per wallet, so choose {activePositionStrategy} to top up or withdraw after unlock to switch.
+                  </AlertText>
+                )}
+                <Button className="h-10 w-full" onClick={() => void sendPoolTransaction("deposit")} disabled={finalDepositDisabled}>
                   <ArrowDownToLine className="h-4 w-4" />
                   Deposit
                 </Button>
@@ -941,11 +956,16 @@ function getStrategyName(days: number) {
   return LOCK_OPTIONS.find((option) => option.days === days)?.label ?? "Unknown";
 }
 
-function inferPositionLockDays(unlockAt: number, positionApy: number) {
+function inferPositionLockDays(updatedAt: number, unlockAt: number, positionApy: number) {
   if (!unlockAt) return 0;
+  if (updatedAt > 0 && unlockAt > updatedAt) {
+    const lockDays = Math.round((unlockAt - updatedAt) / 86400);
+    if (lockDays >= 18) return 30;
+    if (lockDays >= 3) return 7;
+  }
   const matchedLock = LOCK_OPTIONS
     .filter((option) => option.days > 0)
-    .find((option) => Math.abs(positionApy - option.apy) < 0.75);
+    .find((option) => Math.abs(positionApy - (option.apy + ARC_EARLY_BOOST_APY)) < 0.25 || Math.abs(positionApy - option.apy) < 0.25);
   return matchedLock?.days ?? 0;
 }
 
