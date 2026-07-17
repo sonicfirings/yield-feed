@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import Image from "next/image";
 import { decodeFunctionResult, encodeFunctionData, formatUnits, parseUnits } from "viem";
 import {
   Activity,
@@ -445,15 +446,28 @@ export function YieldDashboard() {
             <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-primary/35 bg-primary/10 text-primary shadow-[0_0_36px_rgba(32,201,151,0.16)]">
               <HalcyonMark />
             </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-3xl font-semibold tracking-normal">Halcyon</h1>
-                <span className="rounded-md border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">V3</span>
-                <span className="hidden text-sm text-muted-foreground sm:inline">USDC-native yield pool</span>
-                <span className="hidden h-1 w-1 rounded-full bg-muted-foreground/40 sm:inline-block" />
-                <span className="hidden text-sm font-medium text-primary sm:inline">Built on Arc testnet</span>
+            <div className="flex min-w-0 items-center gap-4">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-3xl font-semibold tracking-normal">Halcyon</h1>
+                  <span className="rounded-md border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">V3</span>
+                </div>
+                <p className="text-sm text-muted-foreground">USDC-native yield pool</p>
               </div>
-              <p className="text-sm text-muted-foreground sm:hidden">USDC-native pool dashboard · Built on Arc testnet</p>
+              <div className="hidden h-11 items-center gap-4 md:flex">
+                <span className="h-9 w-px bg-border" />
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Built on</span>
+                  <Image
+                    src="/arc-wordmark-white.png"
+                    alt="Arc"
+                    width={73}
+                    height={25}
+                    priority
+                    className="h-5 w-auto opacity-85"
+                  />
+                </div>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
