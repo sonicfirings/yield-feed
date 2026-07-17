@@ -569,7 +569,7 @@ export function YieldDashboard() {
                 </Button>
                 {strategyMismatch && (
                   <CompactAlertText>
-                    Active position is {activePositionStrategy}. This pool supports one merged strategy per wallet, so select {activePositionStrategy} to top up or withdraw after unlock to switch.
+                    Current active strategy is &quot;{activePositionStrategy}&quot;. This pool only supports one strategy per wallet.
                   </CompactAlertText>
                 )}
                 <PreviewBox
