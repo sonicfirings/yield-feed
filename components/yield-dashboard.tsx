@@ -439,11 +439,11 @@ export function YieldDashboard() {
   }
 
   return (
-    <main className="h-screen overflow-hidden bg-[radial-gradient(circle_at_20%_-10%,rgba(32,201,151,0.16),transparent_34%),radial-gradient(circle_at_88%_0%,rgba(96,165,250,0.08),transparent_30%),hsl(var(--background))] text-foreground">
+    <main className="h-screen overflow-hidden bg-[radial-gradient(circle_at_18%_-10%,rgba(206,180,118,0.12),transparent_34%),radial-gradient(circle_at_88%_0%,rgba(54,153,116,0.08),transparent_30%),hsl(var(--background))] text-foreground">
       <div className="border-b border-border/60 bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3 px-6 py-2">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-primary/35 bg-primary/10 text-primary shadow-[0_0_36px_rgba(32,201,151,0.16)]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-accent/35 bg-accent/10 text-accent shadow-[0_0_36px_rgba(206,180,118,0.14)]">
               <HalcyonMark />
             </div>
             <div className="flex min-w-0 items-center gap-4">
@@ -474,11 +474,11 @@ export function YieldDashboard() {
               href="https://faucet.circle.com/"
               target="_blank"
               rel="noreferrer"
-              className="text-sm font-medium text-primary transition-colors hover:text-foreground"
+              className="text-sm font-medium text-accent transition-colors hover:text-foreground"
             >
               Faucet
             </a>
-            <Button variant={walletAddress ? "secondary" : "default"} onClick={connectWallet} className="border border-border/70 shadow-[0_0_28px_rgba(15,23,42,0.45)]">
+            <Button variant={walletAddress ? "secondary" : "default"} onClick={connectWallet} className="border border-border/70 shadow-[0_0_28px_rgba(0,0,0,0.35)]">
               <Wallet className="h-4 w-4" />
               {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : "Connect Wallet"}
             </Button>
@@ -494,7 +494,7 @@ export function YieldDashboard() {
                 <p className="eyebrow">Strategy</p>
                 <h2 className="text-base font-semibold">Choose your path</h2>
               </div>
-              <Target className="h-4 w-4 text-primary" />
+              <Target className="h-4 w-4 text-accent" />
             </div>
             <div className="space-y-2">
               {LOCK_OPTIONS.map((option) => (
@@ -563,7 +563,7 @@ export function YieldDashboard() {
                   <QuickAmountButton label="Max" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setQuickAmount(walletUsdcBalance)} />
                 </div>
                 {depositTooHigh && <AlertText>Insufficient {ARC_POOL_TOKEN_SYMBOL} balance.</AlertText>}
-                <Button className="h-10 w-full rounded-lg bg-primary font-semibold text-primary-foreground shadow-[0_14px_35px_rgba(32,201,151,0.22)] hover:bg-primary/90" onClick={() => void sendPoolTransaction("deposit")} disabled={finalDepositDisabled}>
+                <Button className="h-10 w-full rounded-lg bg-primary font-semibold text-primary-foreground shadow-[0_14px_35px_rgba(54,153,116,0.18)] hover:bg-primary/90" onClick={() => void sendPoolTransaction("deposit")} disabled={finalDepositDisabled}>
                   <ArrowDownToLine className="h-4 w-4" />
                   Deposit
                 </Button>
@@ -610,7 +610,7 @@ export function YieldDashboard() {
                   <QuickAmountButton label="Max" disabled={!walletAddress || position.principal <= 0} onClick={() => setQuickWithdrawAmount(position.principal)} />
                 </div>
                 {withdrawTooHigh && <AlertText>Insufficient staked {ARC_POOL_TOKEN_SYMBOL} balance.</AlertText>}
-                <Button className="h-10 w-full rounded-lg bg-primary font-semibold text-primary-foreground shadow-[0_14px_35px_rgba(32,201,151,0.22)] hover:bg-primary/90" onClick={() => void sendPoolTransaction("withdraw")} disabled={withdrawDisabled}>
+                <Button className="h-10 w-full rounded-lg bg-primary font-semibold text-primary-foreground shadow-[0_14px_35px_rgba(54,153,116,0.18)] hover:bg-primary/90" onClick={() => void sendPoolTransaction("withdraw")} disabled={withdrawDisabled}>
                   <ArrowUpFromLine className="h-4 w-4" />
                   Withdraw
                 </Button>
@@ -667,11 +667,11 @@ export function YieldDashboard() {
                   <div className="text-sm font-semibold uppercase tracking-[0.18em] text-foreground/80">Strategy timeline</div>
                   <div className="text-xs text-muted-foreground">{timelineLabel}</div>
                 </div>
-                <Lock className="h-4 w-4 text-primary" />
+                <Lock className="h-4 w-4 text-accent" />
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-secondary/80">
                 <div
-                  className={selectedStrategyHasPosition ? "h-full rounded-full bg-primary shadow-[0_0_22px_rgba(32,201,151,0.55)] transition-all" : "h-full rounded-full bg-muted transition-all"}
+                  className={selectedStrategyHasPosition ? "h-full rounded-full bg-primary shadow-[0_0_22px_rgba(54,153,116,0.34)] transition-all" : "h-full rounded-full bg-muted transition-all"}
                   style={{ width: `${unlockProgress.percent}%` }}
                 />
               </div>
@@ -721,8 +721,8 @@ export function YieldDashboard() {
           <Panel>
             <SectionTitle icon={<ShieldCheck className="h-4 w-4" />} title="Pool health" />
             <div className="flex items-center gap-3">
-              <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-full border border-primary/40 bg-primary/10 shadow-[0_0_42px_rgba(32,201,151,0.18)]">
-                <span className="absolute inset-2 rounded-full border border-primary/20" />
+              <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-full border border-primary/35 bg-primary/10 shadow-[0_0_42px_rgba(54,153,116,0.14)]">
+                <span className="absolute inset-2 rounded-full border border-accent/20" />
                 <div className="text-center">
                   <div className={`text-lg font-semibold ${getToneTextClass(poolHealth.tone)}`}>{poolHealth.label}</div>
                   <div className="text-[11px] text-muted-foreground">status</div>
@@ -759,7 +759,7 @@ export function YieldDashboard() {
 
 function Panel({ children, compact = false }: { children: ReactNode; compact?: boolean }) {
   return (
-    <Card className="rounded-xl border-border/70 bg-card/75 shadow-[0_20px_80px_rgba(0,0,0,0.18)] backdrop-blur-xl">
+    <Card className="rounded-xl border-border/80 bg-card/80 shadow-[0_20px_80px_rgba(0,0,0,0.18)] backdrop-blur-xl">
       <CardContent className={compact ? "p-2.5" : "p-3"}>{children}</CardContent>
     </Card>
   );
@@ -767,8 +767,8 @@ function Panel({ children, compact = false }: { children: ReactNode; compact?: b
 
 function PremiumHero({ children }: { children: ReactNode }) {
   return (
-    <Card className="relative overflow-hidden rounded-xl border-primary/20 bg-[linear-gradient(135deg,rgba(15,23,42,0.92),rgba(10,16,27,0.96))] shadow-[0_24px_90px_rgba(0,0,0,0.28)]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(32,201,151,0.16),transparent_38%),radial-gradient(circle_at_88%_18%,rgba(32,201,151,0.08),transparent_28%)]" />
+    <Card className="relative overflow-hidden rounded-xl border-accent/20 bg-[linear-gradient(135deg,rgba(28,27,23,0.94),rgba(15,16,17,0.97))] shadow-[0_24px_90px_rgba(0,0,0,0.28)]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(206,180,118,0.12),transparent_38%),radial-gradient(circle_at_88%_18%,rgba(54,153,116,0.08),transparent_28%)]" />
       <CardContent className="relative p-4">{children}</CardContent>
     </Card>
   );
@@ -798,7 +798,7 @@ function InfoLine({ label, value }: { label: string; value: string }) {
 function SectionTitle({ icon, title }: { icon: ReactNode; title: string }) {
   return (
     <div className="mb-2.5 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em]">
-      <span className="text-primary">{icon}</span>
+      <span className="text-accent">{icon}</span>
       {title}
     </div>
   );
@@ -818,7 +818,7 @@ function TabButton({
       type="button"
       onClick={onClick}
       className={active
-        ? "h-9 rounded-md bg-primary text-sm font-semibold text-primary-foreground shadow-[0_10px_25px_rgba(32,201,151,0.25)]"
+        ? "h-9 rounded-md bg-primary text-sm font-semibold text-primary-foreground shadow-[0_10px_25px_rgba(54,153,116,0.2)]"
         : "h-9 rounded-md text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"}
     >
       {children}
@@ -846,7 +846,7 @@ function StrategyCard({
       type="button"
       onClick={onClick}
       className={active
-        ? "w-full rounded-xl border border-primary bg-primary/10 p-2.5 text-left shadow-[0_0_34px_rgba(32,201,151,0.12)]"
+        ? "w-full rounded-xl border border-primary/80 bg-primary/10 p-2.5 text-left shadow-[0_0_34px_rgba(54,153,116,0.1)]"
         : "w-full rounded-xl border border-border/75 bg-background/35 p-2.5 text-left transition-colors hover:border-primary/50 hover:bg-secondary/60"}
     >
       <span className="flex items-start justify-between gap-3">
@@ -877,7 +877,7 @@ function StatCard({
   tone?: "default" | "healthy" | "watch" | "low";
 }) {
   return (
-    <Card className="rounded-xl border-border/70 bg-card/75 shadow-[0_20px_70px_rgba(0,0,0,0.14)] backdrop-blur-xl">
+    <Card className="rounded-xl border-border/80 bg-card/80 shadow-[0_20px_70px_rgba(0,0,0,0.14)] backdrop-blur-xl">
       <CardContent className="p-3">
         <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
           <span>{label}</span>
