@@ -201,7 +201,11 @@ export function YieldDashboard() {
         data: rawBalance
       });
       setPoolBalance(Number(formatUnits(balance, ARC_POOL_TOKEN_DECIMALS)));
+    } catch {
+      setPoolBalance(0);
+    }
 
+    try {
       const totalPrincipalData = encodeFunctionData({
         abi: ARC_YIELD_POOL_ABI,
         functionName: "totalPrincipal"
@@ -214,7 +218,6 @@ export function YieldDashboard() {
       });
       setTotalPrincipal(Number(formatUnits(principal, ARC_POOL_TOKEN_DECIMALS)));
     } catch {
-      setPoolBalance(0);
       setTotalPrincipal(0);
     }
   }
