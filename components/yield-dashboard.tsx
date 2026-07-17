@@ -145,9 +145,14 @@ export function YieldDashboard() {
         if (ARC_TESTNET_CHAIN.explorerUrl) chainParams.blockExplorerUrls = [ARC_TESTNET_CHAIN.explorerUrl];
 
         await window.ethereum.request({
-          method: "wallet_addEthereumChain",
-          params: [chainParams]
-        }).catch(() => undefined);
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: chainParams.chainId }]
+        }).catch(async () => {
+          await window.ethereum?.request({
+            method: "wallet_addEthereumChain",
+            params: [chainParams]
+          }).catch(() => undefined);
+        });
       }
 
       if (account) {
@@ -159,35 +164,48 @@ export function YieldDashboard() {
     }
   }
 
-  async function readContract(to: string, data: `0x${string}`) {
+  async function readContract(to: string, data: `0x${string}`, preferWallet = false) {
     const call = { to, data };
 
-    if (ARC_TESTNET_CHAIN.rpcUrl) {
+    const readFromPublicRpc = async () => {
+      if (!ARC_TESTNET_CHAIN.rpcUrl) throw new Error("Missing RPC URL");
+      const response = await fetch(ARC_TESTNET_CHAIN.rpcUrl, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "eth_call",
+          params: [call, "latest"]
+        })
+      });
+      const body = await response.json();
+      if (body.error) throw new Error(body.error.message);
+      if (!body.result) throw new Error("RPC returned no result");
+      return body.result as `0x${string}`;
+    };
+
+    const readFromWallet = async () => {
+      if (!window.ethereum) throw new Error("Missing wallet provider");
+      return await window.ethereum.request({
+        method: "eth_call",
+        params: [call, "latest"]
+      }) as `0x${string}`;
+    };
+
+    if (preferWallet && window.ethereum) {
       try {
-        const response = await fetch(ARC_TESTNET_CHAIN.rpcUrl, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            jsonrpc: "2.0",
-            id: 1,
-            method: "eth_call",
-            params: [call, "latest"]
-          })
-        });
-        const body = await response.json();
-        if (body.error) throw new Error(body.error.message);
-        if (!body.result) throw new Error("RPC returned no result");
-        return body.result as `0x${string}`;
+        return await readFromWallet();
       } catch {
-        // If the public RPC is temporarily unavailable, fall back to the wallet provider.
+        return await readFromPublicRpc();
       }
     }
 
-    if (!window.ethereum) throw new Error("Missing RPC provider");
-    return await window.ethereum.request({
-      method: "eth_call",
-      params: [call, "latest"]
-    }) as `0x${string}`;
+    try {
+      return await readFromPublicRpc();
+    } catch {
+      return await readFromWallet();
+    }
   }
 
   async function refreshPoolBalance() {
@@ -199,7 +217,7 @@ export function YieldDashboard() {
         functionName: "balanceOf",
         args: [ARC_POOL_CONTRACT_ADDRESS as `0x${string}`]
       });
-      const rawBalance = await readContract(ARC_POOL_TOKEN_ADDRESS, balanceData);
+      const rawBalance = await readContract(ARC_POOL_TOKEN_ADDRESS, balanceData, true);
       const balance = decodeFunctionResult({
         abi: ERC20_APPROVE_ABI,
         functionName: "balanceOf",
@@ -263,30 +281,34 @@ export function YieldDashboard() {
         args: [account as `0x${string}`]
       });
 
-      const rawPosition = await readContract(ARC_POOL_CONTRACT_ADDRESS, positionData);
-      const rawRewards = await readContract(ARC_POOL_CONTRACT_ADDRESS, pendingRewardsData);
+      const rawPosition = await readContract(ARC_POOL_CONTRACT_ADDRESS, positionData, true);
 
       const [principal, , updatedAt, unlockAt, apyBps, autoCompoundEnabled] = decodeFunctionResult({
         abi: ARC_YIELD_POOL_ABI,
         functionName: "positions",
         data: rawPosition
       });
-      const rewards = decodeFunctionResult({
-        abi: ARC_YIELD_POOL_ABI,
-        functionName: "pendingRewards",
-        data: rawRewards
-      });
 
       setOnchainStakedAmount(Number(formatUnits(principal, ARC_POOL_TOKEN_DECIMALS)));
-      setOnchainAccruedRewards(Number(formatUnits(rewards, ARC_POOL_TOKEN_DECIMALS)));
       setPositionUpdatedAt(Number(updatedAt));
       setPositionUnlockAt(Number(unlockAt));
       setPositionApy(Number(apyBps) / 100);
       setPositionAutoCompound(Boolean(autoCompoundEnabled));
-      await refreshWalletBalance(account);
-      await refreshPoolBalance();
+      setWalletError(null);
+
+      try {
+        const rawRewards = await readContract(ARC_POOL_CONTRACT_ADDRESS, pendingRewardsData, true);
+        const rewards = decodeFunctionResult({
+          abi: ARC_YIELD_POOL_ABI,
+          functionName: "pendingRewards",
+          data: rawRewards
+        });
+        setOnchainAccruedRewards(Number(formatUnits(rewards, ARC_POOL_TOKEN_DECIMALS)));
+      } catch {
+        setOnchainAccruedRewards(0);
+      }
     } catch {
-      setWalletError("Could not read your pool position. Check the Arc RPC and pool contract address, then refresh.");
+      setWalletError("Could not read your pool position. Arc RPC may be rate-limited; wait a few seconds and refresh.");
     }
   }
 
