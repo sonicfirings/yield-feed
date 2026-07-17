@@ -40,3 +40,83 @@ body {
   line-height: 1rem;
   text-transform: uppercase;
 }
+
+.dashboard-shell {
+  gap: clamp(0.75rem, 0.8vw, 1rem);
+  padding: clamp(0.75rem, 0.9vw, 1rem);
+}
+
+.dashboard-column {
+  gap: clamp(0.5rem, 0.65vw, 0.85rem);
+}
+
+.panel-body {
+  padding: clamp(0.65rem, 0.75vw, 1rem);
+}
+
+.panel-body-compact {
+  padding: clamp(0.55rem, 0.65vw, 0.85rem);
+}
+
+.hero-value {
+  font-size: clamp(2rem, 2.45vw, 3rem);
+  line-height: 1.05;
+}
+
+.hero-panel-body {
+  padding: clamp(1rem, 1.1vw, 1.5rem);
+}
+
+.strategy-card {
+  padding: clamp(0.55rem, 0.65vw, 0.8rem);
+}
+
+.metric-card-body {
+  padding: clamp(0.65rem, 0.75vw, 1rem);
+}
+
+.detail-card {
+  padding: clamp(0.55rem, 0.65vw, 0.85rem);
+}
+
+.dashboard-action {
+  height: clamp(2.5rem, 4.4vh, 3rem);
+}
+
+@media (max-height: 860px) {
+  .dashboard-shell {
+    gap: 0.55rem;
+    padding: 0.55rem;
+  }
+
+  .dashboard-column {
+    gap: 0.45rem;
+  }
+
+  .panel-body {
+    padding: 0.65rem;
+  }
+
+  .panel-body-compact {
+    padding: 0.55rem;
+  }
+
+  .hero-panel-body {
+    padding: 0.8rem;
+  }
+
+  .hero-value {
+    font-size: 2rem;
+  }
+
+  .eyebrow {
+    font-size: 0.62rem;
+    line-height: 0.85rem;
+  }
+}
+
+@media (max-height: 760px) {
+  .optional-compact {
+    display: none;
+  }
+}

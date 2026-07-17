@@ -439,7 +439,7 @@ export function YieldDashboard() {
   }
 
   return (
-    <main className="h-screen overflow-hidden bg-[radial-gradient(circle_at_18%_-10%,rgba(206,180,118,0.12),transparent_34%),radial-gradient(circle_at_88%_0%,rgba(54,153,116,0.08),transparent_30%),hsl(var(--background))] text-foreground">
+    <main className="min-h-screen overflow-y-auto bg-[radial-gradient(circle_at_18%_-10%,rgba(206,180,118,0.12),transparent_34%),radial-gradient(circle_at_88%_0%,rgba(54,153,116,0.08),transparent_30%),hsl(var(--background))] text-foreground xl:h-screen xl:overflow-hidden">
       <div className="border-b border-border/60 bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3 px-6 py-2">
           <div className="flex items-center gap-3">
@@ -486,8 +486,8 @@ export function YieldDashboard() {
         </div>
       </div>
 
-      <div className="mx-auto grid h-[calc((100vh-65px)/1.1)] w-[90.91%] max-w-[1455px] origin-top grid-cols-1 gap-3 overflow-hidden p-3 scale-110 xl:grid-cols-[350px_minmax(0,1fr)_350px]">
-        <aside className="space-y-2 overflow-hidden">
+      <div className="dashboard-shell mx-auto grid max-w-[1600px] grid-cols-1 overflow-visible xl:h-[calc(100vh-65px)] xl:overflow-hidden xl:grid-cols-[minmax(320px,0.82fr)_minmax(650px,1.9fr)_minmax(320px,0.82fr)]">
+        <aside className="dashboard-column flex min-h-0 flex-col overflow-hidden">
           <Panel compact>
             <div className="mb-2 flex items-center justify-between">
               <div>
@@ -496,7 +496,7 @@ export function YieldDashboard() {
               </div>
               <Target className="h-4 w-4 text-accent" />
             </div>
-            <div className="space-y-2">
+            <div className="dashboard-column flex flex-col">
               {LOCK_OPTIONS.map((option) => (
                 <StrategyCard
                   key={option.days}
@@ -511,7 +511,7 @@ export function YieldDashboard() {
             </div>
           </Panel>
 
-          <Panel compact>
+          <Panel compact className="min-h-0">
             <div className="mb-2 grid grid-cols-2 rounded-lg border border-border/80 bg-background/45 p-1">
               <TabButton active={activeTab === "deposit"} onClick={() => setActiveTab("deposit")}>Deposit</TabButton>
               <TabButton active={activeTab === "withdraw"} onClick={() => setActiveTab("withdraw")}>Withdraw</TabButton>
@@ -563,7 +563,7 @@ export function YieldDashboard() {
                   <QuickAmountButton label="Max" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setQuickAmount(walletUsdcBalance)} />
                 </div>
                 {depositTooHigh && <AlertText>Insufficient {ARC_POOL_TOKEN_SYMBOL} balance.</AlertText>}
-                <Button className="h-10 w-full rounded-lg bg-primary font-semibold text-primary-foreground shadow-[0_14px_35px_rgba(54,153,116,0.18)] hover:bg-primary/90" onClick={() => void sendPoolTransaction("deposit")} disabled={finalDepositDisabled}>
+                <Button className="dashboard-action w-full rounded-lg bg-primary font-semibold text-primary-foreground shadow-[0_14px_35px_rgba(54,153,116,0.18)] hover:bg-primary/90" onClick={() => void sendPoolTransaction("deposit")} disabled={finalDepositDisabled}>
                   <ArrowDownToLine className="h-4 w-4" />
                   Deposit
                 </Button>
@@ -610,7 +610,7 @@ export function YieldDashboard() {
                   <QuickAmountButton label="Max" disabled={!walletAddress || position.principal <= 0} onClick={() => setQuickWithdrawAmount(position.principal)} />
                 </div>
                 {withdrawTooHigh && <AlertText>Insufficient staked {ARC_POOL_TOKEN_SYMBOL} balance.</AlertText>}
-                <Button className="h-10 w-full rounded-lg bg-primary font-semibold text-primary-foreground shadow-[0_14px_35px_rgba(54,153,116,0.18)] hover:bg-primary/90" onClick={() => void sendPoolTransaction("withdraw")} disabled={withdrawDisabled}>
+                <Button className="dashboard-action w-full rounded-lg bg-primary font-semibold text-primary-foreground shadow-[0_14px_35px_rgba(54,153,116,0.18)] hover:bg-primary/90" onClick={() => void sendPoolTransaction("withdraw")} disabled={withdrawDisabled}>
                   <ArrowUpFromLine className="h-4 w-4" />
                   Withdraw
                 </Button>
@@ -636,7 +636,7 @@ export function YieldDashboard() {
           </Panel>
         </aside>
 
-        <section className="space-y-3 overflow-hidden">
+        <section className="dashboard-column flex min-h-0 flex-col overflow-hidden">
           <div className="grid gap-3 md:grid-cols-4">
             <StatCard label="Effective APY" value={formatPercent(effectiveDepositApy)} icon={<Sparkles className="h-4 w-4" />} />
             <StatCard label="Pool balance" value={`${formatAmount(poolTvl)} ${ARC_POOL_TOKEN_SYMBOL}`} icon={<Activity className="h-4 w-4" />} />
@@ -648,7 +648,7 @@ export function YieldDashboard() {
             <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="eyebrow">Your position</p>
-                <h2 className="mt-1 text-3xl font-semibold tracking-normal sm:text-4xl">{formatAmount(position.principal)} {ARC_POOL_TOKEN_SYMBOL}</h2>
+                <h2 className="hero-value mt-1 font-semibold tracking-normal">{formatAmount(position.principal)} {ARC_POOL_TOKEN_SYMBOL}</h2>
                 <p className="mt-1 text-sm text-muted-foreground">Staked in {activePositionStrategy.toLowerCase()} strategy</p>
               </div>
               <span className="rounded-lg border border-border/80 bg-secondary/70 px-3 py-1.5 text-xs font-semibold">
@@ -703,7 +703,7 @@ export function YieldDashboard() {
           </div>
         </section>
 
-        <aside className="space-y-3 overflow-hidden">
+        <aside className="dashboard-column flex min-h-0 flex-col overflow-hidden">
           <Panel>
             <SectionTitle icon={<Sparkles className="h-4 w-4" />} title="Yield simulator" />
             <div className="rounded-xl border border-border/75 bg-background/35 p-3">
@@ -742,7 +742,7 @@ export function YieldDashboard() {
             )}
           </Panel>
 
-          <Panel>
+          <Panel className="optional-compact">
             <SectionTitle icon={<CheckCircle2 className="h-4 w-4" />} title="Achievements" />
             <div className="grid gap-2">
               <Achievement label="First deposit" active={position.principal > 0} />
@@ -757,10 +757,10 @@ export function YieldDashboard() {
   );
 }
 
-function Panel({ children, compact = false }: { children: ReactNode; compact?: boolean }) {
+function Panel({ children, compact = false, className = "" }: { children: ReactNode; compact?: boolean; className?: string }) {
   return (
-    <Card className="rounded-xl border-border/80 bg-card/80 shadow-[0_20px_80px_rgba(0,0,0,0.18)] backdrop-blur-xl">
-      <CardContent className={compact ? "p-2.5" : "p-3"}>{children}</CardContent>
+    <Card className={`rounded-xl border-border/80 bg-card/80 shadow-[0_20px_80px_rgba(0,0,0,0.18)] backdrop-blur-xl ${className}`}>
+      <CardContent className={compact ? "panel-body-compact" : "panel-body"}>{children}</CardContent>
     </Card>
   );
 }
@@ -769,7 +769,7 @@ function PremiumHero({ children }: { children: ReactNode }) {
   return (
     <Card className="relative overflow-hidden rounded-xl border-accent/20 bg-[linear-gradient(135deg,rgba(28,27,23,0.94),rgba(15,16,17,0.97))] shadow-[0_24px_90px_rgba(0,0,0,0.28)]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(206,180,118,0.12),transparent_38%),radial-gradient(circle_at_88%_18%,rgba(54,153,116,0.08),transparent_28%)]" />
-      <CardContent className="relative p-4">{children}</CardContent>
+      <CardContent className="hero-panel-body relative">{children}</CardContent>
     </Card>
   );
 }
@@ -846,8 +846,8 @@ function StrategyCard({
       type="button"
       onClick={onClick}
       className={active
-        ? "w-full rounded-xl border border-primary/80 bg-primary/10 p-2.5 text-left shadow-[0_0_34px_rgba(54,153,116,0.1)]"
-        : "w-full rounded-xl border border-border/75 bg-background/35 p-2.5 text-left transition-colors hover:border-primary/50 hover:bg-secondary/60"}
+        ? "strategy-card w-full rounded-xl border border-primary/80 bg-primary/10 text-left shadow-[0_0_34px_rgba(54,153,116,0.1)]"
+        : "strategy-card w-full rounded-xl border border-border/75 bg-background/35 text-left transition-colors hover:border-primary/50 hover:bg-secondary/60"}
     >
       <span className="flex items-start justify-between gap-3">
           <span>
@@ -878,7 +878,7 @@ function StatCard({
 }) {
   return (
     <Card className="rounded-xl border-border/80 bg-card/80 shadow-[0_20px_70px_rgba(0,0,0,0.14)] backdrop-blur-xl">
-      <CardContent className="p-3">
+      <CardContent className="metric-card-body">
         <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
           <span>{label}</span>
           <span className={getToneTextClass(tone)}>{icon}</span>
@@ -891,7 +891,7 @@ function StatCard({
 
 function HeroMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-border/70 bg-background/35 p-3">
+    <div className="detail-card rounded-xl border border-border/70 bg-background/35">
       <div className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{label}</div>
       <div className="mt-1 text-lg font-semibold">{value}</div>
     </div>
@@ -900,7 +900,7 @@ function HeroMetric({ label, value }: { label: string; value: string }) {
 
 function DetailMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-border/70 bg-background/35 p-2.5">
+    <div className="detail-card rounded-lg border border-border/70 bg-background/35">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="mt-1 text-sm font-semibold">{value}</div>
     </div>
