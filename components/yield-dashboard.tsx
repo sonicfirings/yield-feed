@@ -486,7 +486,7 @@ export function YieldDashboard() {
         </div>
       </div>
 
-      <div className="mx-auto grid h-[calc(100vh-65px)] max-w-[1600px] grid-cols-1 gap-3 overflow-hidden p-3 xl:grid-cols-[350px_minmax(0,1fr)_350px]">
+      <div className="mx-auto grid h-[calc((100vh-65px)/1.1)] w-[90.91%] max-w-[1455px] origin-top grid-cols-1 gap-3 overflow-hidden p-3 scale-110 xl:grid-cols-[350px_minmax(0,1fr)_350px]">
         <aside className="space-y-2 overflow-hidden">
           <Panel compact>
             <div className="mb-2 flex items-center justify-between">
@@ -563,15 +563,15 @@ export function YieldDashboard() {
                   <QuickAmountButton label="Max" disabled={!walletAddress || walletUsdcBalance <= 0} onClick={() => setQuickAmount(walletUsdcBalance)} />
                 </div>
                 {depositTooHigh && <AlertText>Insufficient {ARC_POOL_TOKEN_SYMBOL} balance.</AlertText>}
-                {strategyMismatch && (
-                  <AlertText>
-                    Active position is {activePositionStrategy}. This contract supports one merged strategy per wallet, so choose {activePositionStrategy} to top up or withdraw after unlock to switch.
-                  </AlertText>
-                )}
                 <Button className="h-10 w-full rounded-lg bg-primary font-semibold text-primary-foreground shadow-[0_14px_35px_rgba(32,201,151,0.22)] hover:bg-primary/90" onClick={() => void sendPoolTransaction("deposit")} disabled={finalDepositDisabled}>
                   <ArrowDownToLine className="h-4 w-4" />
                   Deposit
                 </Button>
+                {strategyMismatch && (
+                  <CompactAlertText>
+                    Active position is {activePositionStrategy}. This pool supports one merged strategy per wallet, so select {activePositionStrategy} to top up or withdraw after unlock to switch.
+                  </CompactAlertText>
+                )}
                 <PreviewBox
                   rows={[
                     ["Selected APY", formatPercent(effectiveDepositApy)],
@@ -953,6 +953,14 @@ function Achievement({ label, active }: { label: string; active: boolean }) {
 function AlertText({ children }: { children: ReactNode }) {
   return (
     <p className="rounded-lg border border-destructive/40 bg-destructive/10 p-2.5 text-xs text-destructive">{children}</p>
+  );
+}
+
+function CompactAlertText({ children }: { children: ReactNode }) {
+  return (
+    <p className="line-clamp-2 rounded-md border border-destructive/35 bg-destructive/10 px-2 py-1.5 text-[11px] leading-snug text-destructive">
+      {children}
+    </p>
   );
 }
 
