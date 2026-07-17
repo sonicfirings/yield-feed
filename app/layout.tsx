@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ARC Yield Pool",
-  description: "Owner-operated ARC testnet yield pool with transparent 5% estimated APY."
+  title: "Halcyon",
+  description: "A USDC-native pool dashboard built on Arc testnet."
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

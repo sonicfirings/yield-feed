@@ -1,6 +1,8 @@
-# ARC Yield Pool V2
+# Halcyon
 
-ARC Yield Pool V2 is an owner-operated USDC (ARC) testnet yield pool for Arc Testnet.
+Halcyon is a USDC-native pool dashboard built on Arc testnet.
+
+The app is an independent project. Halcyon uses Arc as infrastructure and does not imply endorsement by Circle or Arc.
 
 The app supports:
 
@@ -16,8 +18,15 @@ The app supports:
 - Top depositor bonus distribution from reward reserve
 - Pool health meter
 - Reward reserve and runway estimates
+- Dark-mode dashboard UI
+- Strategy cards
+- Active strategy display
+- Yield simulator
+- Pool transparency panel
+- Recent activity feed
+- Achievement badges
 
-## V2 Pool Features
+## Pool Features
 
 Lock options:
 
@@ -45,7 +54,7 @@ Pool health:
 - Tailwind CSS
 - shadcn/ui-style components
 - viem
-- ARC testnet
+- Arc testnet
 - USDC (ARC)
 
 ## Local Setup
@@ -95,13 +104,13 @@ NEXT_PUBLIC_ARC_POOL_CONTRACT_ADDRESS=your_v2_contract_address
 
 Then redeploy the Vercel app.
 
-Important: V2 changes the deposit function signature to:
+Important: the current contract uses this deposit function signature:
 
 ```solidity
 deposit(uint256 amount, uint256 lockDays, bool autoCompound)
 ```
 
-The old V1 contract address will not work with the V2 frontend. Redeploy the V2 contract before enabling the live app.
+Older contract addresses will not work with this frontend. Deploy the current contract before enabling the live app.
 
 ## Funding Rewards
 

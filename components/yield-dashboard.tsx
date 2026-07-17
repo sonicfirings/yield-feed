@@ -15,8 +15,7 @@ import {
   ShieldCheck,
   Sparkles,
   Target,
-  Wallet,
-  Zap
+  Wallet
 } from "lucide-react";
 import { formatPercent } from "@/lib/utils";
 import { ARC_TESTNET_CHAIN } from "@/services/arc";
@@ -419,15 +418,15 @@ export function YieldDashboard() {
       <div className="border-b border-border/70 bg-background/95">
         <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-3 px-5 py-2.5">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-md border border-primary/30 bg-primary/10 text-primary">
-              <Zap className="h-5 w-5" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-md border border-primary/30 bg-primary/10 text-primary">
+              <HalcyonMark />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-semibold tracking-normal">ARC Yield V3</h1>
-                <span className="rounded-md border border-primary/30 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">Live</span>
+                <h1 className="text-2xl font-semibold tracking-normal">Halcyon</h1>
+                <span className="rounded-md border border-primary/30 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">V3</span>
               </div>
-              <p className="text-sm text-muted-foreground">USDC yield dashboard on Arc Testnet</p>
+              <p className="text-sm text-muted-foreground">USDC-native pool dashboard · Built on Arc testnet</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -730,6 +729,18 @@ function Panel({ children }: { children: ReactNode }) {
     <Card className="border-border/80 bg-card/95 shadow-none">
       <CardContent className="p-3">{children}</CardContent>
     </Card>
+  );
+}
+
+function HalcyonMark() {
+  return (
+    <svg viewBox="0 0 40 40" className="h-7 w-7" role="img" aria-label="Halcyon logo">
+      <circle cx="20" cy="20" r="17" fill="none" stroke="currentColor" strokeWidth="2.2" opacity="0.9" />
+      <path d="M9 21.2h22" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" opacity="0.95" />
+      <path d="M12 25.8c4.8-2.2 11.2-2.2 16 0" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" opacity="0.8" />
+      <path d="M15.2 30c3-1.2 6.6-1.2 9.6 0" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" opacity="0.7" />
+      <path d="M14.2 16.5a5.8 5.8 0 0 1 11.6 0" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" opacity="0.95" />
+    </svg>
   );
 }
 
