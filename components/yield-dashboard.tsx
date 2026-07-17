@@ -438,19 +438,22 @@ export function YieldDashboard() {
   }
 
   return (
-    <main className="h-screen overflow-hidden bg-background text-foreground">
-      <div className="border-b border-border/70 bg-background/95">
-        <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-3 px-5 py-2.5">
+    <main className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_20%_-10%,rgba(32,201,151,0.16),transparent_34%),radial-gradient(circle_at_88%_0%,rgba(96,165,250,0.08),transparent_30%),hsl(var(--background))] text-foreground">
+      <div className="border-b border-border/60 bg-background/70 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3 px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md border border-primary/30 bg-primary/10 text-primary">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-primary/35 bg-primary/10 text-primary shadow-[0_0_36px_rgba(32,201,151,0.16)]">
               <HalcyonMark />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-semibold tracking-normal">Halcyon</h1>
-                <span className="rounded-md border border-primary/30 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">V3</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-3xl font-semibold tracking-normal">Halcyon</h1>
+                <span className="rounded-md border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">V3</span>
+                <span className="hidden text-sm text-muted-foreground sm:inline">USDC-native yield pool</span>
+                <span className="hidden h-1 w-1 rounded-full bg-muted-foreground/40 sm:inline-block" />
+                <span className="hidden text-sm font-medium text-primary sm:inline">Built on Arc testnet</span>
               </div>
-              <p className="text-sm text-muted-foreground">USDC-native pool dashboard · Built on Arc testnet</p>
+              <p className="text-sm text-muted-foreground sm:hidden">USDC-native pool dashboard · Built on Arc testnet</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -458,11 +461,11 @@ export function YieldDashboard() {
               href="https://faucet.circle.com/"
               target="_blank"
               rel="noreferrer"
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="text-sm font-medium text-primary transition-colors hover:text-foreground"
             >
               Faucet
             </a>
-            <Button variant={walletAddress ? "secondary" : "default"} onClick={connectWallet}>
+            <Button variant={walletAddress ? "secondary" : "default"} onClick={connectWallet} className="border border-border/70 shadow-[0_0_28px_rgba(15,23,42,0.45)]">
               <Wallet className="h-4 w-4" />
               {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : "Connect Wallet"}
             </Button>
@@ -470,17 +473,17 @@ export function YieldDashboard() {
         </div>
       </div>
 
-      <div className="mx-auto grid h-[calc(100vh-61px)] max-w-[1500px] grid-cols-1 gap-3 overflow-hidden p-3 xl:grid-cols-[330px_minmax(0,1fr)_330px]">
-        <aside className="space-y-3 overflow-hidden">
+      <div className="mx-auto grid max-h-[calc(100vh-81px)] max-w-[1600px] grid-cols-1 gap-4 overflow-hidden p-5 xl:grid-cols-[360px_minmax(0,1fr)_360px]">
+        <aside className="space-y-4 overflow-hidden">
           <Panel>
             <div className="mb-3 flex items-center justify-between">
               <div>
-                <h2 className="text-base font-semibold">Choose strategy</h2>
-                <p className="text-xs text-muted-foreground">Same pool, different yield paths.</p>
+                <p className="eyebrow">Strategy</p>
+                <h2 className="text-lg font-semibold">Choose your path</h2>
               </div>
               <Target className="h-4 w-4 text-primary" />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {LOCK_OPTIONS.map((option) => (
                 <StrategyCard
                   key={option.days}
@@ -496,12 +499,12 @@ export function YieldDashboard() {
           </Panel>
 
           <Panel>
-            <div className="mb-3 grid grid-cols-2 rounded-md border border-border bg-secondary/50 p-1">
+            <div className="mb-4 grid grid-cols-2 rounded-lg border border-border/80 bg-background/45 p-1">
               <TabButton active={activeTab === "deposit"} onClick={() => setActiveTab("deposit")}>Deposit</TabButton>
               <TabButton active={activeTab === "withdraw"} onClick={() => setActiveTab("withdraw")}>Withdraw</TabButton>
             </div>
 
-            <div className="mb-3 rounded-md border border-border bg-background/40 p-2.5 text-sm">
+            <div className="mb-4 rounded-lg border border-border/75 bg-background/35 p-3 text-sm">
               <InfoLine label="Pool owner" value={ARC_POOL_OWNER} />
               <InfoLine label="Network" value={ARC_TESTNET_CHAIN.name} />
               <InfoLine label="Contract" value={contractReady ? `${ARC_POOL_CONTRACT_ADDRESS.slice(0, 6)}...${ARC_POOL_CONTRACT_ADDRESS.slice(-4)}` : "Demo mode"} />
@@ -512,7 +515,7 @@ export function YieldDashboard() {
                 <button
                   type="button"
                   onClick={() => setAutoCompound((current) => !current)}
-                  className="flex w-full items-center justify-between rounded-md border border-border bg-background/40 p-2.5 text-left text-sm transition-colors hover:bg-secondary"
+                  className="flex w-full items-center justify-between rounded-lg border border-border/75 bg-background/35 p-3 text-left text-sm transition-colors hover:border-primary/45 hover:bg-primary/5"
                 >
                   <span>
                     <span className="block font-medium">Auto-compound</span>
@@ -533,7 +536,7 @@ export function YieldDashboard() {
                       setDepositAmount(event.target.value);
                       setWalletError(null);
                     }}
-                    className="h-10 text-base"
+                    className="h-12 rounded-lg border-border/75 bg-background/45 text-base"
                   />
                 </label>
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -559,7 +562,7 @@ export function YieldDashboard() {
                     Active position is {activePositionStrategy}. This contract supports one merged strategy per wallet, so choose {activePositionStrategy} to top up or withdraw after unlock to switch.
                   </AlertText>
                 )}
-                <Button className="h-10 w-full" onClick={() => void sendPoolTransaction("deposit")} disabled={finalDepositDisabled}>
+                <Button className="h-12 w-full rounded-lg bg-primary font-semibold text-primary-foreground shadow-[0_14px_35px_rgba(32,201,151,0.22)] hover:bg-primary/90" onClick={() => void sendPoolTransaction("deposit")} disabled={finalDepositDisabled}>
                   <ArrowDownToLine className="h-4 w-4" />
                   Deposit
                 </Button>
@@ -584,7 +587,7 @@ export function YieldDashboard() {
                       setWithdrawAmount(event.target.value);
                       setWalletError(null);
                     }}
-                    className="h-10 text-base"
+                    className="h-12 rounded-lg border-border/75 bg-background/45 text-base"
                   />
                 </label>
                 <div className="grid grid-cols-4 gap-2">
@@ -594,7 +597,7 @@ export function YieldDashboard() {
                   <QuickAmountButton label="Max" disabled={!walletAddress || position.principal <= 0} onClick={() => setQuickWithdrawAmount(position.principal)} />
                 </div>
                 {withdrawTooHigh && <AlertText>Insufficient staked {ARC_POOL_TOKEN_SYMBOL} balance.</AlertText>}
-                <Button className="h-10 w-full" onClick={() => void sendPoolTransaction("withdraw")} disabled={withdrawDisabled}>
+                <Button className="h-12 w-full rounded-lg bg-primary font-semibold text-primary-foreground shadow-[0_14px_35px_rgba(32,201,151,0.22)] hover:bg-primary/90" onClick={() => void sendPoolTransaction("withdraw")} disabled={withdrawDisabled}>
                   <ArrowUpFromLine className="h-4 w-4" />
                   Withdraw
                 </Button>
@@ -616,11 +619,11 @@ export function YieldDashboard() {
             )}
 
             {walletError && <AlertText>{walletError}</AlertText>}
-            {actionMessage && <p className="mt-3 overflow-hidden break-words rounded-md border border-primary/20 bg-primary/10 p-2 text-xs text-primary">{actionMessage}</p>}
+            {actionMessage && <p className="mt-3 overflow-hidden break-words rounded-lg border border-primary/20 bg-primary/10 p-2.5 text-xs text-primary">{actionMessage}</p>}
           </Panel>
         </aside>
 
-        <section className="space-y-3 overflow-hidden">
+        <section className="space-y-4 overflow-hidden">
           <div className="grid gap-3 md:grid-cols-4">
             <StatCard label="Effective APY" value={formatPercent(effectiveDepositApy)} icon={<Sparkles className="h-4 w-4" />} />
             <StatCard label="Pool balance" value={`${formatAmount(poolTvl)} ${ARC_POOL_TOKEN_SYMBOL}`} icon={<Activity className="h-4 w-4" />} />
@@ -628,41 +631,42 @@ export function YieldDashboard() {
             <StatCard label="Pool health" value={poolHealth.label} tone={poolHealth.tone} icon={<ShieldCheck className="h-4 w-4" />} />
           </div>
 
-          <Panel>
-            <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+          <PremiumHero>
+            <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold">Your position</h2>
-                <p className="text-sm text-muted-foreground">Track stake, rewards, unlock status, and projected income.</p>
+                <p className="eyebrow">Your position</p>
+                <h2 className="mt-2 text-4xl font-semibold tracking-normal sm:text-5xl">{formatAmount(position.principal)} {ARC_POOL_TOKEN_SYMBOL}</h2>
+                <p className="mt-2 text-sm text-muted-foreground">Staked in {activePositionStrategy.toLowerCase()} strategy</p>
               </div>
-              <span className="rounded-md border border-border bg-secondary px-3 py-1 text-xs font-semibold">
+              <span className="rounded-lg border border-border/80 bg-secondary/70 px-3 py-1.5 text-xs font-semibold">
                 {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : "Not connected"}
               </span>
             </div>
             <div className="grid gap-3 md:grid-cols-4">
-              <HeroMetric label="Active strategy" value={activePositionStrategy} />
-              <HeroMetric label="Amount staked" value={`${formatAmount(position.principal)} ${ARC_POOL_TOKEN_SYMBOL}`} />
+              <HeroMetric label="Effective APY" value={formatPercent(position.apy)} />
               <HeroMetric label="Pending rewards" value={`${formatAmount(positionRewards)} ${ARC_POOL_TOKEN_SYMBOL}`} />
-              <HeroMetric label="Current APY" value={formatPercent(position.apy)} />
+              <HeroMetric label="Unlock" value={positionLocked ? `${unlockProgress.daysLeft}d left` : "Available"} />
+              <HeroMetric label="Reserve cover" value={totalPrincipal > 0 ? `${(rewardReserve / Math.max(yearlyRewardObligation, 1)).toFixed(2)}x` : "Ready"} />
             </div>
-            <div className="mt-3 rounded-md border border-border bg-background/40 p-3">
-              <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="mt-5 rounded-xl border border-border/75 bg-background/35 p-4">
+              <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
-                  <div className="text-sm font-semibold">Strategy timeline</div>
+                  <div className="text-sm font-semibold uppercase tracking-[0.18em] text-foreground/80">Strategy timeline</div>
                   <div className="text-xs text-muted-foreground">{timelineLabel}</div>
                 </div>
                 <Lock className="h-4 w-4 text-primary" />
               </div>
-              <div className="h-2 overflow-hidden rounded-full bg-secondary">
+              <div className="h-2 overflow-hidden rounded-full bg-secondary/80">
                 <div
-                  className={selectedStrategyHasPosition ? "h-full rounded-full bg-primary transition-all" : "h-full rounded-full bg-muted transition-all"}
+                  className={selectedStrategyHasPosition ? "h-full rounded-full bg-primary shadow-[0_0_22px_rgba(32,201,151,0.55)] transition-all" : "h-full rounded-full bg-muted transition-all"}
                   style={{ width: `${unlockProgress.percent}%` }}
                 />
               </div>
-              <div className="mt-3 grid grid-cols-4 gap-2 text-center text-[11px] text-muted-foreground">
+              <div className="mt-4 grid grid-cols-4 gap-2 text-center text-[11px] text-muted-foreground">
                 {timelineSteps.map((step) => <span key={step}>{step}</span>)}
               </div>
             </div>
-          </Panel>
+          </PremiumHero>
 
           <div className="grid gap-3 lg:grid-cols-2">
             <Panel>
@@ -695,13 +699,13 @@ export function YieldDashboard() {
           </Panel>
         </section>
 
-        <aside className="space-y-3 overflow-hidden">
+        <aside className="space-y-4 overflow-hidden">
           <Panel>
             <SectionTitle icon={<Sparkles className="h-4 w-4" />} title="Yield simulator" />
-            <div className="rounded-md border border-border bg-background/40 p-3">
+            <div className="rounded-xl border border-border/75 bg-background/35 p-4">
               <div className="text-xs text-muted-foreground">Deposit preview</div>
-              <div className="mt-1 text-2xl font-semibold">{formatAmount(estimate.principal)} {ARC_POOL_TOKEN_SYMBOL}</div>
-              <div className="mt-3 grid gap-2">
+              <div className="mt-1 text-3xl font-semibold">{formatAmount(estimate.principal)} {ARC_POOL_TOKEN_SYMBOL}</div>
+              <div className="mt-4 grid gap-3">
                 <InfoLine label="Daily" value={`${formatAmount(estimate.dailyRewards)} ${ARC_POOL_TOKEN_SYMBOL}`} />
                 <InfoLine label="Monthly" value={`${formatAmount(estimate.monthlyRewards)} ${ARC_POOL_TOKEN_SYMBOL}`} />
                 <InfoLine label="Yearly" value={`${formatAmount(estimate.yearlyRewards)} ${ARC_POOL_TOKEN_SYMBOL}`} />
@@ -712,8 +716,9 @@ export function YieldDashboard() {
 
           <Panel>
             <SectionTitle icon={<ShieldCheck className="h-4 w-4" />} title="Pool health" />
-            <div className="flex items-center gap-3">
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10">
+            <div className="flex items-center gap-4">
+              <div className="relative flex h-24 w-24 shrink-0 items-center justify-center rounded-full border border-primary/40 bg-primary/10 shadow-[0_0_42px_rgba(32,201,151,0.18)]">
+                <span className="absolute inset-2 rounded-full border border-primary/20" />
                 <div className="text-center">
                   <div className={`text-lg font-semibold ${getToneTextClass(poolHealth.tone)}`}>{poolHealth.label}</div>
                   <div className="text-[11px] text-muted-foreground">status</div>
@@ -726,7 +731,7 @@ export function YieldDashboard() {
               </div>
             </div>
             {contractUrl && (
-              <a href={contractUrl} target="_blank" rel="noreferrer" className="mt-3 flex items-center justify-between rounded-md border border-border bg-background/40 p-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
+              <a href={contractUrl} target="_blank" rel="noreferrer" className="mt-4 flex items-center justify-between rounded-lg border border-border/75 bg-background/35 p-3 text-sm text-muted-foreground transition-colors hover:border-primary/45 hover:text-foreground">
                 View pool contract
                 <ExternalLink className="h-4 w-4" />
               </a>
@@ -750,8 +755,17 @@ export function YieldDashboard() {
 
 function Panel({ children }: { children: ReactNode }) {
   return (
-    <Card className="border-border/80 bg-card/95 shadow-none">
-      <CardContent className="p-3">{children}</CardContent>
+    <Card className="rounded-xl border-border/70 bg-card/75 shadow-[0_20px_80px_rgba(0,0,0,0.18)] backdrop-blur-xl">
+      <CardContent className="p-4">{children}</CardContent>
+    </Card>
+  );
+}
+
+function PremiumHero({ children }: { children: ReactNode }) {
+  return (
+    <Card className="relative overflow-hidden rounded-xl border-primary/20 bg-[linear-gradient(135deg,rgba(15,23,42,0.92),rgba(10,16,27,0.96))] shadow-[0_24px_90px_rgba(0,0,0,0.28)]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(32,201,151,0.16),transparent_38%),radial-gradient(circle_at_88%_18%,rgba(32,201,151,0.08),transparent_28%)]" />
+      <CardContent className="relative p-6">{children}</CardContent>
     </Card>
   );
 }
@@ -779,7 +793,7 @@ function InfoLine({ label, value }: { label: string; value: string }) {
 
 function SectionTitle({ icon, title }: { icon: ReactNode; title: string }) {
   return (
-    <div className="mb-3 flex items-center gap-2 text-base font-semibold">
+    <div className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em]">
       <span className="text-primary">{icon}</span>
       {title}
     </div>
@@ -800,8 +814,8 @@ function TabButton({
       type="button"
       onClick={onClick}
       className={active
-        ? "h-8 rounded-md bg-primary text-sm font-semibold text-primary-foreground"
-        : "h-8 rounded-md text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"}
+        ? "h-9 rounded-md bg-primary text-sm font-semibold text-primary-foreground shadow-[0_10px_25px_rgba(32,201,151,0.25)]"
+        : "h-9 rounded-md text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"}
     >
       {children}
     </button>
@@ -828,8 +842,8 @@ function StrategyCard({
       type="button"
       onClick={onClick}
       className={active
-        ? "w-full rounded-md border border-primary bg-primary/10 p-2.5 text-left"
-        : "w-full rounded-md border border-border bg-background/40 p-2.5 text-left transition-colors hover:border-primary/50 hover:bg-secondary/80"}
+        ? "w-full rounded-xl border border-primary bg-primary/10 p-3 text-left shadow-[0_0_34px_rgba(32,201,151,0.12)]"
+        : "w-full rounded-xl border border-border/75 bg-background/35 p-3 text-left transition-colors hover:border-primary/50 hover:bg-secondary/60"}
     >
       <span className="flex items-start justify-between gap-3">
           <span>
@@ -841,7 +855,7 @@ function StrategyCard({
               </span>
             )}
           </span>
-        <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-primary">{formatPercent(apy)}</span>
+        <span className="rounded-md bg-secondary/90 px-2 py-1 text-xs font-semibold text-primary">{formatPercent(apy)}</span>
       </span>
     </button>
   );
@@ -859,13 +873,13 @@ function StatCard({
   tone?: "default" | "healthy" | "watch" | "low";
 }) {
   return (
-    <Card className="border-border/80 bg-card/95 shadow-none">
-      <CardContent className="p-3">
+    <Card className="rounded-xl border-border/70 bg-card/75 shadow-[0_20px_70px_rgba(0,0,0,0.14)] backdrop-blur-xl">
+      <CardContent className="p-4">
         <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
           <span>{label}</span>
           <span className={getToneTextClass(tone)}>{icon}</span>
         </div>
-        <div className={`mt-2 text-xl font-semibold ${getToneTextClass(tone)}`}>{value}</div>
+        <div className={`mt-3 text-xl font-semibold ${getToneTextClass(tone)}`}>{value}</div>
       </CardContent>
     </Card>
   );
@@ -873,16 +887,16 @@ function StatCard({
 
 function HeroMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-border bg-background/40 p-3">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-1 text-xl font-semibold">{value}</div>
+    <div className="rounded-xl border border-border/70 bg-background/35 p-4">
+      <div className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{label}</div>
+      <div className="mt-2 text-xl font-semibold">{value}</div>
     </div>
   );
 }
 
 function DetailMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-border bg-background/40 p-2.5">
+    <div className="rounded-lg border border-border/70 bg-background/35 p-3">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="mt-1 text-base font-semibold">{value}</div>
     </div>
@@ -903,7 +917,7 @@ function QuickAmountButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="h-9 rounded-md border border-border bg-background/40 text-xs font-semibold transition-colors hover:border-primary/50 hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+      className="h-10 rounded-lg border border-border/75 bg-background/35 text-xs font-semibold transition-colors hover:border-primary/50 hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-50"
     >
       {label}
     </button>
@@ -912,7 +926,7 @@ function QuickAmountButton({
 
 function PreviewBox({ rows }: { rows: [string, string][] }) {
   return (
-    <div className="rounded-md border border-border bg-background/40 p-2.5 text-sm">
+    <div className="rounded-lg border border-border/70 bg-background/35 p-3 text-sm">
       {rows.map(([label, value]) => (
         <InfoLine key={label} label={label} value={value} />
       ))}
@@ -922,7 +936,7 @@ function PreviewBox({ rows }: { rows: [string, string][] }) {
 
 function ActivityRow({ title, detail, active }: { title: string; detail: string; active: boolean }) {
   return (
-    <div className="flex gap-2 rounded-md border border-border bg-background/40 p-2.5">
+    <div className="flex gap-3 rounded-lg border border-border/70 bg-background/35 p-3">
       <span className={active ? "mt-1 h-2 w-2 rounded-full bg-primary" : "mt-1 h-2 w-2 rounded-full bg-muted"} />
       <span>
         <span className="block text-sm font-semibold">{title}</span>
@@ -935,8 +949,8 @@ function ActivityRow({ title, detail, active }: { title: string; detail: string;
 function Achievement({ label, active }: { label: string; active: boolean }) {
   return (
     <div className={active
-      ? "flex items-center justify-between rounded-md border border-primary/40 bg-primary/10 p-2.5 text-sm"
-      : "flex items-center justify-between rounded-md border border-border bg-background/40 p-2.5 text-sm text-muted-foreground"}
+      ? "flex items-center justify-between rounded-lg border border-primary/40 bg-primary/10 p-3 text-sm"
+      : "flex items-center justify-between rounded-lg border border-border/70 bg-background/35 p-3 text-sm text-muted-foreground"}
     >
       <span>{label}</span>
       <CheckCircle2 className={active ? "h-4 w-4 text-primary" : "h-4 w-4"} />
@@ -946,7 +960,7 @@ function Achievement({ label, active }: { label: string; active: boolean }) {
 
 function AlertText({ children }: { children: ReactNode }) {
   return (
-    <p className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">{children}</p>
+    <p className="rounded-lg border border-destructive/40 bg-destructive/10 p-2.5 text-xs text-destructive">{children}</p>
   );
 }
 
