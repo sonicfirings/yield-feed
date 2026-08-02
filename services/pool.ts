@@ -20,6 +20,42 @@ export const LOCK_OPTIONS: LockOption[] = [
 
 export const ARC_YIELD_POOL_ABI = [
   {
+    type: "event",
+    name: "Deposited",
+    inputs: [
+      { name: "user", type: "address", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
+      { name: "lockDays", type: "uint256", indexed: false },
+      { name: "autoCompound", type: "bool", indexed: false },
+      { name: "apyBps", type: "uint256", indexed: false }
+    ]
+  },
+  {
+    type: "event",
+    name: "Withdrawn",
+    inputs: [
+      { name: "user", type: "address", indexed: true },
+      { name: "principal", type: "uint256", indexed: false },
+      { name: "rewards", type: "uint256", indexed: false }
+    ]
+  },
+  {
+    type: "event",
+    name: "RewardsClaimed",
+    inputs: [
+      { name: "user", type: "address", indexed: true },
+      { name: "rewards", type: "uint256", indexed: false }
+    ]
+  },
+  {
+    type: "event",
+    name: "RewardsFunded",
+    inputs: [
+      { name: "owner", type: "address", indexed: true },
+      { name: "amount", type: "uint256", indexed: false }
+    ]
+  },
+  {
     type: "function",
     name: "deposit",
     stateMutability: "nonpayable",

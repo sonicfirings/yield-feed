@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import Image from "next/image";
-import { decodeFunctionResult, encodeFunctionData, formatUnits, parseUnits } from "viem";
+import { decodeEventLog, decodeFunctionResult, encodeEventTopics, encodeFunctionData, formatUnits, parseUnits } from "viem";
 import {
   Activity,
   ArrowDownToLine,
@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   ExternalLink,
   Gift,
+  History,
   Lock,
   RefreshCw,
   ShieldCheck,
@@ -43,6 +44,28 @@ type EthereumProvider = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
 };
 
+type PoolHistoryItem = {
+  id: string;
+  action: "Deposit" | "Withdraw" | "Claim" | "Fund";
+  amount: number;
+  secondaryAmount?: number;
+  strategy?: string;
+  autoCompound?: boolean;
+  apy?: number;
+  txHash: string;
+  blockNumber: number;
+  timestamp?: number;
+};
+
+type RpcLog = {
+  address: string;
+  topics: `0x${string}`[];
+  data: `0x${string}`;
+  blockNumber: `0x${string}`;
+  transactionHash: `0x${string}`;
+  logIndex: `0x${string}`;
+};
+
 declare global {
   interface Window {
     ethereum?: EthereumProvider;
@@ -50,7 +73,7 @@ declare global {
 }
 
 export function YieldDashboard() {
-  const [activeTab, setActiveTab] = useState<"deposit" | "withdraw">("deposit");
+  const [activeTab, setActiveTab] = useState<"deposit" | "withdraw" | "history">("deposit");
   const [selectedLockDays, setSelectedLockDays] = useState(0);
   const [autoCompound, setAutoCompound] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -68,6 +91,9 @@ export function YieldDashboard() {
   const [poolBalance, setPoolBalance] = useState(0);
   const [totalPrincipal, setTotalPrincipal] = useState(0);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [historyItems, setHistoryItems] = useState<PoolHistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   const depositValue = Number(depositAmount || 0);
   const withdrawValue = Number(withdrawAmount || 0);
@@ -117,6 +143,35 @@ export function YieldDashboard() {
     // The first pool read is intentionally a one-time hydration call.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!walletAddress) {
+      setHistoryItems([]);
+      setHistoryError(null);
+      return;
+    }
+
+    void refreshPoolHistory(walletAddress);
+    // History refresh should track wallet changes only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletAddress]);
+
+  async function rpcRequest<T>(method: string, params: unknown[]) {
+    if (!ARC_TESTNET_CHAIN.rpcUrl) throw new Error("Missing RPC URL");
+    const response = await fetch(ARC_TESTNET_CHAIN.rpcUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: Date.now(),
+        method,
+        params
+      })
+    });
+    const body = await response.json();
+    if (body.error) throw new Error(body.error.message);
+    return body.result as T;
+  }
 
   async function connectWallet() {
     setWalletError(null);
@@ -170,20 +225,9 @@ export function YieldDashboard() {
 
     const readFromPublicRpc = async () => {
       if (!ARC_TESTNET_CHAIN.rpcUrl) throw new Error("Missing RPC URL");
-      const response = await fetch(ARC_TESTNET_CHAIN.rpcUrl, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "eth_call",
-          params: [call, "latest"]
-        })
-      });
-      const body = await response.json();
-      if (body.error) throw new Error(body.error.message);
-      if (!body.result) throw new Error("RPC returned no result");
-      return body.result as `0x${string}`;
+      const result = await rpcRequest<`0x${string}`>("eth_call", [call, "latest"]);
+      if (!result) throw new Error("RPC returned no result");
+      return result;
     };
 
     const readFromWallet = async () => {
@@ -313,6 +357,108 @@ export function YieldDashboard() {
     }
   }
 
+  async function refreshPoolHistory(account = walletAddress) {
+    if (!account || !contractReady || !ARC_POOL_CONTRACT_ADDRESS) return;
+
+    setHistoryLoading(true);
+    setHistoryError(null);
+
+    try {
+      const events = ["Deposited", "Withdrawn", "RewardsClaimed", "RewardsFunded"] as const;
+      const allLogs = await Promise.all(events.map(async (eventName) => {
+        const topics = encodeEventTopics({
+          abi: ARC_YIELD_POOL_ABI,
+          eventName,
+          args: eventName === "RewardsFunded"
+            ? { owner: account as `0x${string}` }
+            : { user: account as `0x${string}` }
+        });
+
+        return await rpcRequest<RpcLog[]>("eth_getLogs", [{
+          address: ARC_POOL_CONTRACT_ADDRESS,
+          fromBlock: "0x0",
+          toBlock: "latest",
+          topics
+        }]);
+      }));
+
+      const logs = allLogs.flat().sort((a, b) => {
+        const blockDiff = Number(BigInt(b.blockNumber) - BigInt(a.blockNumber));
+        if (blockDiff !== 0) return blockDiff;
+        return Number(BigInt(b.logIndex) - BigInt(a.logIndex));
+      }).slice(0, 12);
+
+      const uniqueBlocks = Array.from(new Set(logs.map((log) => log.blockNumber))).slice(0, 8);
+      const blockTimes = new Map<string, number>();
+
+      await Promise.all(uniqueBlocks.map(async (blockNumber) => {
+        try {
+          const block = await rpcRequest<{ timestamp?: `0x${string}` }>("eth_getBlockByNumber", [blockNumber, false]);
+          if (block?.timestamp) blockTimes.set(blockNumber, Number(BigInt(block.timestamp)));
+        } catch {
+          // History still works without timestamps; block numbers remain visible.
+        }
+      }));
+
+      const nextItems = logs.map((log) => {
+        const event = decodeEventLog({
+          abi: ARC_YIELD_POOL_ABI,
+          data: log.data,
+          topics: log.topics as [] | [`0x${string}`, ...`0x${string}`[]]
+        });
+        const args = event.args as unknown as Record<string, bigint | boolean | `0x${string}`>;
+        const baseItem = {
+          id: `${log.transactionHash}-${log.logIndex}`,
+          txHash: log.transactionHash,
+          blockNumber: Number(BigInt(log.blockNumber)),
+          timestamp: blockTimes.get(log.blockNumber)
+        };
+
+        if (event.eventName === "Deposited") {
+          const lockDays = Number(args.lockDays);
+          const apyBps = Number(args.apyBps);
+          return {
+            ...baseItem,
+            action: "Deposit" as const,
+            amount: Number(formatUnits(args.amount as bigint, ARC_POOL_TOKEN_DECIMALS)),
+            strategy: getStrategyName(lockDays),
+            autoCompound: Boolean(args.autoCompound),
+            apy: apyBps / 100
+          };
+        }
+
+        if (event.eventName === "Withdrawn") {
+          return {
+            ...baseItem,
+            action: "Withdraw" as const,
+            amount: Number(formatUnits(args.principal as bigint, ARC_POOL_TOKEN_DECIMALS)),
+            secondaryAmount: Number(formatUnits(args.rewards as bigint, ARC_POOL_TOKEN_DECIMALS))
+          };
+        }
+
+        if (event.eventName === "RewardsClaimed") {
+          return {
+            ...baseItem,
+            action: "Claim" as const,
+            amount: Number(formatUnits(args.rewards as bigint, ARC_POOL_TOKEN_DECIMALS))
+          };
+        }
+
+        return {
+          ...baseItem,
+          action: "Fund" as const,
+          amount: Number(formatUnits(args.amount as bigint, ARC_POOL_TOKEN_DECIMALS))
+        };
+      });
+
+      setHistoryItems(nextItems);
+    } catch {
+      setHistoryError("Could not sync history from Arc RPC. Try refresh again in a few seconds.");
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
   async function sendPoolTransaction(action: "deposit" | "withdraw" | "claim") {
     setWalletError(null);
     setActionMessage(null);
@@ -422,6 +568,7 @@ export function YieldDashboard() {
         void refreshWalletBalance();
         void refreshPoolPosition();
         void refreshPoolBalance();
+        void refreshPoolHistory();
       }, 5000);
     } catch {
       setWalletError("Transaction was rejected or failed.");
@@ -512,9 +659,10 @@ export function YieldDashboard() {
           </Panel>
 
           <Panel compact className="min-h-0">
-            <div className="mb-2 grid grid-cols-2 rounded-lg border border-border/80 bg-background/45 p-1">
+            <div className="mb-2 grid grid-cols-3 rounded-lg border border-border/80 bg-background/45 p-1">
               <TabButton active={activeTab === "deposit"} onClick={() => setActiveTab("deposit")}>Deposit</TabButton>
               <TabButton active={activeTab === "withdraw"} onClick={() => setActiveTab("withdraw")}>Withdraw</TabButton>
+              <TabButton active={activeTab === "history"} onClick={() => setActiveTab("history")}>History</TabButton>
             </div>
 
             <div className="mb-2 rounded-lg border border-border/75 bg-background/35 p-2 text-xs">
@@ -580,7 +728,7 @@ export function YieldDashboard() {
                   ]}
                 />
               </div>
-            ) : (
+            ) : activeTab === "withdraw" ? (
               <div className="space-y-2">
                 <PreviewBox
                   rows={[
@@ -623,11 +771,55 @@ export function YieldDashboard() {
                     void refreshWalletBalance();
                     void refreshPoolPosition();
                     void refreshPoolBalance();
+                    void refreshPoolHistory();
                   }} disabled={!walletAddress}>
                     <RefreshCw className="h-4 w-4" />
                     Refresh
                   </Button>
                 </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-sm font-semibold">Wallet history</div>
+                    <div className="text-xs text-muted-foreground">On-chain Halcyon pool events</div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void refreshPoolHistory()}
+                    disabled={!walletAddress || historyLoading}
+                    className="h-8 rounded-lg"
+                  >
+                    <RefreshCw className={historyLoading ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"} />
+                    Sync
+                  </Button>
+                </div>
+
+                {!walletAddress && (
+                  <EmptyHistoryState title="Connect wallet" description="Your deposits, withdrawals, claims, and funding events will appear here." />
+                )}
+
+                {walletAddress && historyLoading && historyItems.length === 0 && (
+                  <EmptyHistoryState title="Syncing history" description="Reading your Halcyon events from Arc Testnet." />
+                )}
+
+                {walletAddress && historyError && (
+                  <AlertText>{historyError}</AlertText>
+                )}
+
+                {walletAddress && !historyLoading && !historyError && historyItems.length === 0 && (
+                  <EmptyHistoryState title="No activity yet" description="Once this wallet uses Halcyon, transactions will show here with Arcscan links." />
+                )}
+
+                {historyItems.length > 0 && (
+                  <div className="history-list space-y-2">
+                    {historyItems.map((item) => (
+                      <HistoryRow key={item.id} item={item} contractUrl={contractUrl} />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -762,6 +954,51 @@ function Panel({ children, compact = false, className = "" }: { children: ReactN
     <Card className={`rounded-xl border-border/80 bg-card/80 shadow-[0_20px_80px_rgba(0,0,0,0.18)] backdrop-blur-xl ${className}`}>
       <CardContent className={compact ? "panel-body-compact" : "panel-body"}>{children}</CardContent>
     </Card>
+  );
+}
+
+function EmptyHistoryState({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="rounded-lg border border-border/70 bg-background/35 p-3 text-xs">
+      <div className="flex items-center gap-2 font-semibold text-foreground">
+        <History className="h-3.5 w-3.5 text-accent" />
+        {title}
+      </div>
+      <p className="mt-1 text-muted-foreground">{description}</p>
+    </div>
+  );
+}
+
+function HistoryRow({ item }: { item: PoolHistoryItem; contractUrl: string }) {
+  const txUrl = getTransactionUrl(item.txHash);
+  const amountLabel = `${formatAmount(item.amount)} ${ARC_POOL_TOKEN_SYMBOL}`;
+  const detail = getHistoryDetail(item);
+
+  return (
+    <div className="rounded-lg border border-border/70 bg-background/35 p-2.5 text-xs">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className={getHistoryPillClass(item.action)}>{item.action}</span>
+            <span className="font-semibold">{amountLabel}</span>
+          </div>
+          {detail && <div className="mt-1 text-muted-foreground">{detail}</div>}
+          <div className="mt-1 text-[11px] text-muted-foreground">
+            {item.timestamp ? formatHistoryTime(item.timestamp) : `Block ${item.blockNumber.toLocaleString()}`}
+          </div>
+        </div>
+        {txUrl && (
+          <a
+            href={txUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="shrink-0 rounded-md border border-border/70 bg-secondary/60 px-2 py-1 font-semibold text-muted-foreground transition-colors hover:border-primary/45 hover:text-foreground"
+          >
+            Tx
+          </a>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -986,6 +1223,15 @@ function formatUnlock(timestamp: number) {
   }).format(new Date(timestamp * 1000));
 }
 
+function formatHistoryTime(timestamp: number) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(new Date(timestamp * 1000));
+}
+
 function getFutureDate(days: number) {
   const date = new Date();
   date.setDate(date.getDate() + days);
@@ -1031,6 +1277,37 @@ function getTimelineLabel(selectedLockDays: number, selectedStrategyHasPosition:
 function getTimelineSteps(selectedLockDays: number) {
   if (selectedLockDays === 0) return ["Deposit", "Earning", "No lock", "Withdraw"];
   return ["Deposited", "Earning", `Day ${selectedLockDays}`, "Withdraw"];
+}
+
+function getHistoryDetail(item: PoolHistoryItem) {
+  if (item.action === "Deposit") {
+    const details = [item.strategy ?? "Strategy"];
+    if (item.apy) details.push(`${formatPercent(item.apy)} APY`);
+    details.push(item.autoCompound ? "Auto-compound on" : "Auto-compound off");
+    return details.join(" · ");
+  }
+
+  if (item.action === "Withdraw") {
+    return item.secondaryAmount && item.secondaryAmount > 0
+      ? `Includes ${formatAmount(item.secondaryAmount)} ${ARC_POOL_TOKEN_SYMBOL} rewards`
+      : "Principal withdrawn";
+  }
+
+  if (item.action === "Claim") return "Rewards claimed";
+  return "Reward reserve funded";
+}
+
+function getHistoryPillClass(action: PoolHistoryItem["action"]) {
+  const base = "rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em]";
+  if (action === "Deposit") return `${base} border-primary/35 bg-primary/10 text-primary`;
+  if (action === "Withdraw") return `${base} border-accent/35 bg-accent/10 text-accent`;
+  if (action === "Claim") return `${base} border-blue-400/30 bg-blue-400/10 text-blue-200`;
+  return `${base} border-muted-foreground/30 bg-secondary/70 text-muted-foreground`;
+}
+
+function getTransactionUrl(txHash: string) {
+  if (!ARC_TESTNET_CHAIN.explorerUrl || !txHash) return "";
+  return `${ARC_TESTNET_CHAIN.explorerUrl.replace(/\/$/, "")}/tx/${txHash}`;
 }
 
 function getUnlockProgress(unlockAt: number, lockDays: number) {
