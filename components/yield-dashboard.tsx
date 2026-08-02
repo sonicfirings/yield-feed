@@ -17,8 +17,7 @@ import {
   ShieldCheck,
   Sparkles,
   Target,
-  Wallet,
-  X
+  Wallet
 } from "lucide-react";
 import { formatPercent } from "@/lib/utils";
 import { ARC_TESTNET_CHAIN } from "@/services/arc";
@@ -67,18 +66,6 @@ type RpcLog = {
   logIndex: `0x${string}`;
 };
 
-type PassportStats = {
-  lifetimeDeposited: number;
-  lifetimeWithdrawn: number;
-  rewardsClaimed: number;
-  netDeposited: number;
-  activityCount: number;
-  preferredStrategy: string;
-  badgeCount: number;
-  tier: string;
-  firstSeen?: number;
-};
-
 declare global {
   interface Window {
     ethereum?: EthereumProvider;
@@ -107,7 +94,6 @@ export function YieldDashboard() {
   const [historyItems, setHistoryItems] = useState<PoolHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
-  const [passportOpen, setPassportOpen] = useState(false);
 
   const depositValue = Number(depositAmount || 0);
   const withdrawValue = Number(withdrawAmount || 0);
@@ -151,7 +137,6 @@ export function YieldDashboard() {
     ? `${ARC_TESTNET_CHAIN.explorerUrl.replace(/\/$/, "")}/address/${ARC_POOL_CONTRACT_ADDRESS}`
     : "";
   const positionRewards = contractReady ? onchainAccruedRewards : position.monthlyRewards;
-  const passportStats = useMemo(() => getPassportStats(historyItems, position.principal), [historyItems, position.principal]);
 
   useEffect(() => {
     void refreshPoolBalance();
@@ -229,7 +214,6 @@ export function YieldDashboard() {
       if (account) {
         await refreshWalletBalance(account);
         await refreshPoolPosition(account);
-        setPassportOpen(true);
       }
     } catch {
       setWalletError("Wallet connection was cancelled or failed.");
@@ -643,7 +627,7 @@ export function YieldDashboard() {
             </a>
             <Button
               variant={walletAddress ? "secondary" : "default"}
-              onClick={walletAddress ? () => setPassportOpen(true) : connectWallet}
+              onClick={connectWallet}
               className="border border-border/70 shadow-[0_0_28px_rgba(0,0,0,0.35)]"
             >
               <Wallet className="h-4 w-4" />
@@ -965,26 +949,6 @@ export function YieldDashboard() {
           </Panel>
         </aside>
       </div>
-      {passportOpen && walletAddress && (
-        <YieldPassportDrawer
-          walletAddress={walletAddress}
-          positionAmount={position.principal}
-          positionStrategy={activePositionStrategy}
-          positionRewards={positionRewards}
-          positionUnlock={positionLocked ? `${unlockProgress.daysLeft}d left` : "Available"}
-          passportStats={passportStats}
-          historyItems={historyItems}
-          historyLoading={historyLoading}
-          historyError={historyError}
-          onClose={() => setPassportOpen(false)}
-          onSync={() => {
-            void refreshWalletBalance();
-            void refreshPoolPosition();
-            void refreshPoolBalance();
-            void refreshPoolHistory();
-          }}
-        />
-      )}
     </main>
   );
 }
@@ -994,151 +958,6 @@ function Panel({ children, compact = false, className = "" }: { children: ReactN
     <Card className={`rounded-xl border-border/80 bg-card/80 shadow-[0_20px_80px_rgba(0,0,0,0.18)] backdrop-blur-xl ${className}`}>
       <CardContent className={compact ? "panel-body-compact" : "panel-body"}>{children}</CardContent>
     </Card>
-  );
-}
-
-function YieldPassportDrawer({
-  walletAddress,
-  positionAmount,
-  positionStrategy,
-  positionRewards,
-  positionUnlock,
-  passportStats,
-  historyItems,
-  historyLoading,
-  historyError,
-  onClose,
-  onSync
-}: {
-  walletAddress: string;
-  positionAmount: number;
-  positionStrategy: string;
-  positionRewards: number;
-  positionUnlock: string;
-  passportStats: PassportStats;
-  historyItems: PoolHistoryItem[];
-  historyLoading: boolean;
-  historyError: string | null;
-  onClose: () => void;
-  onSync: () => void;
-}) {
-  const recentItems = historyItems.slice(0, 5);
-  const hasDeposit = passportStats.lifetimeDeposited > 0;
-  const hasAutoCompound = historyItems.some((item) => item.action === "Deposit" && item.autoCompound);
-  const hasMaxStrategy = historyItems.some((item) => item.strategy === "30 days") || positionStrategy === "30 days";
-
-  return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-background/55 backdrop-blur-sm">
-      <button type="button" aria-label="Close Yield Passport" className="absolute inset-0 cursor-default" onClick={onClose} />
-      <aside className="relative z-10 flex h-full w-full max-w-[430px] flex-col border-l border-border/80 bg-card/95 shadow-[-30px_0_90px_rgba(0,0,0,0.45)]">
-        <div className="border-b border-border/70 p-5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-accent/35 bg-accent/10 text-accent">
-                  <HalcyonMark />
-                </div>
-                <div>
-                  <p className="eyebrow">Yield Passport</p>
-                  <h2 className="text-xl font-semibold">Halcyon Profile</h2>
-                </div>
-              </div>
-              <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                {passportStats.tier}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-border/70 bg-background/40 p-2 text-muted-foreground transition-colors hover:border-primary/45 hover:text-foreground"
-              aria-label="Close passport"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="mt-4 rounded-xl border border-border/75 bg-background/45 p-3">
-            <div className="text-xs text-muted-foreground">Wallet</div>
-            <div className="mt-1 break-all text-sm font-semibold">{walletAddress}</div>
-          </div>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto p-5">
-          <div className="rounded-2xl border border-accent/25 bg-[linear-gradient(135deg,rgba(206,180,118,0.12),rgba(54,153,116,0.08)_48%,rgba(13,15,16,0.86))] p-4 shadow-[0_18px_60px_rgba(0,0,0,0.22)]">
-            <p className="eyebrow">Current Position</p>
-            <div className="mt-2 text-3xl font-semibold">{formatAmount(positionAmount)} {ARC_POOL_TOKEN_SYMBOL}</div>
-            <div className="mt-1 text-sm text-muted-foreground">{positionStrategy} strategy</div>
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <PassportMetric label="Pending rewards" value={`${formatAmount(positionRewards)} ${ARC_POOL_TOKEN_SYMBOL}`} />
-              <PassportMetric label="Unlock" value={positionUnlock} />
-            </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <PassportMetric label="Lifetime deposited" value={`${formatAmount(passportStats.lifetimeDeposited)} ${ARC_POOL_TOKEN_SYMBOL}`} />
-            <PassportMetric label="Lifetime withdrawn" value={`${formatAmount(passportStats.lifetimeWithdrawn)} ${ARC_POOL_TOKEN_SYMBOL}`} />
-            <PassportMetric label="Rewards claimed" value={`${formatAmount(passportStats.rewardsClaimed)} ${ARC_POOL_TOKEN_SYMBOL}`} />
-            <PassportMetric label="Net deposited" value={`${formatAmount(passportStats.netDeposited)} ${ARC_POOL_TOKEN_SYMBOL}`} />
-            <PassportMetric label="Preferred strategy" value={passportStats.preferredStrategy} />
-            <PassportMetric label="Activity count" value={passportStats.activityCount.toString()} />
-            <PassportMetric label="Badges" value={`${passportStats.badgeCount}/4`} />
-            <PassportMetric label="Member since" value={passportStats.firstSeen ? formatPassportDate(passportStats.firstSeen) : "New wallet"} />
-          </div>
-
-          <div className="mt-4 rounded-xl border border-border/75 bg-background/35 p-3">
-            <SectionTitle icon={<CheckCircle2 className="h-4 w-4" />} title="Passport Badges" />
-            <div className="grid gap-2">
-              <PassportBadge label="First deposit" active={hasDeposit} />
-              <PassportBadge label="Auto-compounder" active={hasAutoCompound} />
-              <PassportBadge label="30-day maximizer" active={hasMaxStrategy} />
-              <PassportBadge label="Active Halcyon user" active={positionAmount > 0} />
-            </div>
-          </div>
-
-          <div className="mt-4 rounded-xl border border-border/75 bg-background/35 p-3">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <SectionTitle icon={<History className="h-4 w-4" />} title="Recent Activity" />
-              <Button variant="outline" size="sm" onClick={onSync} disabled={historyLoading} className="h-8 rounded-lg">
-                <RefreshCw className={historyLoading ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"} />
-                Sync
-              </Button>
-            </div>
-
-            {historyError && <AlertText>{historyError}</AlertText>}
-            {historyLoading && recentItems.length === 0 && <EmptyHistoryState title="Syncing history" description="Reading this wallet's Halcyon activity from Arc Testnet." />}
-            {!historyLoading && !historyError && recentItems.length === 0 && <EmptyHistoryState title="No activity yet" description="Deposit, withdraw, or claim rewards to start building this passport." />}
-            {recentItems.length > 0 && (
-              <div className="space-y-2">
-                {recentItems.map((item) => (
-                  <HistoryRow key={item.id} item={item} />
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </aside>
-    </div>
-  );
-}
-
-function PassportMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-border/70 bg-background/35 p-2.5">
-      <div className="text-[11px] text-muted-foreground">{label}</div>
-      <div className="mt-1 text-sm font-semibold">{value}</div>
-    </div>
-  );
-}
-
-function PassportBadge({ label, active }: { label: string; active: boolean }) {
-  return (
-    <div className={active
-      ? "flex items-center justify-between rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-sm"
-      : "flex items-center justify-between rounded-lg border border-border/70 bg-background/35 px-3 py-2 text-sm text-muted-foreground"}
-    >
-      <span>{label}</span>
-      <CheckCircle2 className={active ? "h-4 w-4 text-primary" : "h-4 w-4"} />
-    </div>
   );
 }
 
@@ -1417,14 +1236,6 @@ function formatHistoryTime(timestamp: number) {
   }).format(new Date(timestamp * 1000));
 }
 
-function formatPassportDate(timestamp: number) {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  }).format(new Date(timestamp * 1000));
-}
-
 function getFutureDate(days: number) {
   const date = new Date();
   date.setDate(date.getDate() + days);
@@ -1501,54 +1312,6 @@ function getHistoryPillClass(action: PoolHistoryItem["action"]) {
 function getTransactionUrl(txHash: string) {
   if (!ARC_TESTNET_CHAIN.explorerUrl || !txHash) return "";
   return `${ARC_TESTNET_CHAIN.explorerUrl.replace(/\/$/, "")}/tx/${txHash}`;
-}
-
-function getPassportStats(historyItems: PoolHistoryItem[], currentPosition: number): PassportStats {
-  const lifetimeDeposited = historyItems
-    .filter((item) => item.action === "Deposit")
-    .reduce((sum, item) => sum + item.amount, 0);
-  const lifetimeWithdrawn = historyItems
-    .filter((item) => item.action === "Withdraw")
-    .reduce((sum, item) => sum + item.amount, 0);
-  const rewardsClaimed = historyItems
-    .filter((item) => item.action === "Claim")
-    .reduce((sum, item) => sum + item.amount, 0);
-  const strategyTotals = historyItems
-    .filter((item) => item.action === "Deposit" && item.strategy)
-    .reduce<Record<string, number>>((totals, item) => {
-      const strategy = item.strategy ?? "Unknown";
-      totals[strategy] = (totals[strategy] ?? 0) + item.amount;
-      return totals;
-    }, {});
-  const preferredStrategy = Object.entries(strategyTotals)
-    .sort(([, amountA], [, amountB]) => amountB - amountA)[0]?.[0] ?? "Not set";
-  const firstSeen = historyItems
-    .filter((item) => item.timestamp)
-    .sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0))[0]?.timestamp;
-  const badgeCount = [
-    lifetimeDeposited > 0,
-    historyItems.some((item) => item.action === "Deposit" && item.autoCompound),
-    historyItems.some((item) => item.strategy === "30 days"),
-    currentPosition > 0
-  ].filter(Boolean).length;
-
-  return {
-    lifetimeDeposited,
-    lifetimeWithdrawn,
-    rewardsClaimed,
-    netDeposited: Math.max(0, lifetimeDeposited - lifetimeWithdrawn),
-    activityCount: historyItems.length,
-    preferredStrategy,
-    badgeCount,
-    tier: getPassportTier(lifetimeDeposited, badgeCount, currentPosition),
-    firstSeen
-  };
-}
-
-function getPassportTier(lifetimeDeposited: number, badgeCount: number, currentPosition: number) {
-  if (lifetimeDeposited >= 100 || badgeCount >= 4) return "Prime Yield Member";
-  if (currentPosition > 0 || lifetimeDeposited > 0) return "Early Pool User";
-  return "New Halcyon Wallet";
 }
 
 function getUnlockProgress(unlockAt: number, lockDays: number) {
